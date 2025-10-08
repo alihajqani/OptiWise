@@ -1,2 +1,5 @@
 PyQt6
 PyInstaller
+pandas
+openpyxl
+scikit-learn
