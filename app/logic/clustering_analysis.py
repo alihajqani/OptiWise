@@ -1,51 +1,49 @@
-# In app/logic/clustering_analysis.py
-
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 
-def run_clustering_pipeline(file_path):
+def run_clustering_pipeline(df: pd.DataFrame, dmu_column: str, selected_features: list):
     """
-    Takes the path to an Excel file and runs the full clustering pipeline.
-    Returns a dictionary containing the results.
+    Runs the clustering pipeline on the provided dataframe using only the selected features.
+    
+    Args:
+        df (pd.DataFrame): The full dataframe loaded from the Excel file.
+        dmu_column (str): The name of the column containing DMU identifiers.
+        selected_features (list): A list of column names to be used for clustering.
+
+    Returns:
+        dict: A dictionary containing the clustering results.
     """
-    # 1. Load data using pandas. Assume the first sheet is the data.
-    df = pd.read_excel(file_path)
+    # 1. Select the relevant data
+    dmu_names = df[dmu_column]
+    features_df = df[selected_features]
 
-    if df.shape[1] < 2:
-        raise ValueError("فایل اکسل باید حداقل دو ستون داشته باشد (نام واحد و یک شاخص).")
-    
-    # 2. Separate identifiers (DMUs) from features
-    dmu_names = df.iloc[:, 0]
-    features = df.iloc[:, 1:].select_dtypes(include=['number']) # Only use numeric columns
-    
-    if features.shape[1] < 1:
-        raise ValueError("هیچ ستون عددی برای تحلیل پیدا نشد.")
+    # Check for non-numeric data in selected features
+    if not all(features_df.dtypes.apply(pd.api.types.is_numeric_dtype)):
+        raise ValueError("تمام ستون‌های انتخاب شده باید عددی باشند.")
 
-    # 3. Pre-processing: Normalization (scaling)
+    # 2. Pre-processing: Normalization (scaling)
     scaler = StandardScaler()
-    scaled_features = scaler.fit_transform(features)
+    scaled_features = scaler.fit_transform(features_df)
 
-    # 4. Pre-processing: PCA (dimensionality reduction)
-    # The document suggests reducing to 5 components if possible.
-    n_components = min(5, features.shape[1], features.shape[0])
+    # 3. Pre-processing: PCA (dimensionality reduction)
+    n_samples, n_features = features_df.shape
+    n_components = min(5, n_features, n_samples)
     pca = PCA(n_components=n_components)
     pca_features = pca.fit_transform(scaled_features)
 
-    # 5. Find the optimal number of clusters (k) using Silhouette Score
+    # 4. Find the optimal number of clusters (k) using Silhouette Score
     best_score = -1
     best_k = -1
     best_labels = None
     
-    # K cannot be greater than the number of samples
-    max_k = min(10, len(dmu_names) - 1)
+    max_k = min(10, n_samples - 1)
     if max_k < 2:
         raise ValueError("تعداد واحدهای تصمیم‌گیرنده برای خوشه‌بندی کافی نیست (حداقل ۲ واحد نیاز است).")
 
     for k in range(2, max_k + 1):
-        # Using n_init='auto' is the modern default for KMeans
         kmeans = KMeans(n_clusters=k, random_state=42, n_init='auto')
         labels = kmeans.fit_predict(pca_features)
         score = silhouette_score(pca_features, labels)
@@ -55,7 +53,7 @@ def run_clustering_pipeline(file_path):
             best_k = k
             best_labels = labels
             
-    # 6. Prepare and return results
+    # 5. Prepare and return results
     results = {
         'dmu_names': dmu_names.tolist(),
         'labels': best_labels.tolist(),
@@ -63,5 +61,4 @@ def run_clustering_pipeline(file_path):
         'best_score': best_score,
         'algorithm': 'K-Means'
     }
-
     return results
