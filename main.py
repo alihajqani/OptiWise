@@ -5,7 +5,7 @@ from PyQt6.QtCore import Qt # Import Qt for LayoutDirection
 from app.main_window import MainWindow
 
 # ===== CONFIGURATION & CONSTANTS =====
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 # ===== INITIALIZATION & STARTUP =====
 if __name__ == "__main__":
