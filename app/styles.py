@@ -3,65 +3,77 @@
 def load_stylesheet():
     """Returns the QSS stylesheet for the application."""
     return """
+        /* ... Global Styles, QMainWindow, QGroupBox ... */
         QWidget {
-            background-color: #F0F2F5; /* Light gray background */
-            color: #333333; /* Dark gray text */
-            font-family: Arial, sans-serif;
+            background-color: #FDFBF5; color: #333333; font-family: Arial, sans-serif;
+        }
+        QMainWindow, QDialog { background-color: #FDFBF5; }
+        QGroupBox {
+            border: 1px solid #D0D0D0; border-radius: 8px; margin-top: 10px;
+            font-weight: bold; color: #1A3E6E;
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin; subcontrol-position: top right;
+            padding: 0 10px; background-color: #FDFBF5;
         }
 
-        QMainWindow, QDialog {
+        /* ... Navigation List ... */
+        QListWidget {
+            border: none; background-color: #1A3E6E; padding: 10px 0px;
+        }
+        QListWidget::item {
+            padding: 12px 20px; color: #FFFFFF; border-bottom: 1px solid #2B508A;
+        }
+        QListWidget::item:hover { background-color: #2B508A; }
+        QListWidget::item:selected {
+            background-color: #E6AD30; color: #1A3E6E; font-weight: bold;
+        }
+
+        /* ... Buttons ... */
+        QPushButton {
+            background-color: #1A3E6E; color: #FFFFFF; border-radius: 5px;
+            padding: 10px 15px; font-size: 14px; font-weight: bold; border: none;
+        }
+        QPushButton:hover { background-color: #2B508A; }
+        QPushButton:pressed { background-color: #122C4D; }
+
+        /* --- NEW: CheckBox Styling for RTL --- */
+        QCheckBox {
+            spacing: 5px; /* Space between checkbox and text */
+        }
+        QCheckBox::indicator {
+            width: 15px;
+            height: 15px;
+        }
+
+
+        /* ... Labels ... */
+        QLabel#TitleLabel {
+            font-size: 28px; font-weight: bold; color: #1A3E6E; padding-bottom: 10px;
+        }
+        QLabel#SubtitleLabel { font-size: 16px; color: #555555; }
+        
+        /* --- Table Views --- */
+        QTableView {
+            border: 1px solid #D0D0D0; gridline-color: #E0E0E0;
             background-color: #FFFFFF;
         }
-
-        /* Style for the navigation list */
-        QListWidget {
-            border: 1px solid #D0D0D0;
-            background-color: #E8ECF1; /* Lighter blue-gray for nav */
-            padding: 5px;
-        }
-
-        QListWidget::item {
-            padding: 10px 5px;
-            border-bottom: 1px solid #D0D0D0;
-        }
-
-        QListWidget::item:hover {
-            background-color: #DDE5ED; /* Slightly darker on hover */
-        }
-
-        QListWidget::item:selected {
-            background-color: #4A90E2; /* Main blue for selection */
-            color: #FFFFFF; /* White text for selected item */
-            font-weight: bold;
-        }
-
-        /* Style for buttons */
-        QPushButton {
-            background-color: #4A90E2; /* Main blue */
-            color: #FFFFFF;
-            border-radius: 5px;
-            padding: 10px 15px;
-            font-size: 14px;
-            border: none;
-        }
-
-        QPushButton:hover {
-            background-color: #357ABD; /* Darker blue on hover */
-        }
-
-        QPushButton:pressed {
-            background-color: #2A6496;
-        }
-
-        /* Style for labels */
-        QLabel#TitleLabel {
-            font-size: 24px;
-            font-weight: bold;
-            color: #2A6496; /* Darker blue for titles */
+        
+        QHeaderView::section {
+            background-color: #E8ECF1; padding: 8px;
+            border: 1px solid #D0D0D0; font-weight: bold;
         }
         
-        QLabel#SubtitleLabel {
-            font-size: 16px;
-            color: #555555;
+        /* --- NEW: Global Item Alignment for Tables --- */
+        QTableView::item {
+            text-align: center; /* Center-aligns the text in all table cells */
+        }
+
+        /* ... ScrollBar ... */
+        QScrollBar:vertical {
+            border: none; background: #E8ECF1; width: 10px; margin: 0px;
+        }
+        QScrollBar::handle:vertical {
+            background: #B0B8C0; min-height: 20px; border-radius: 5px;
         }
     """
