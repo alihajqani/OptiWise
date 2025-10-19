@@ -1,3 +1,4 @@
+# ===== IMPORTS & DEPENDENCIES =====
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog,
     QTableView, QMessageBox, QGroupBox, QCheckBox, QScrollArea
@@ -9,6 +10,7 @@ import traceback
 
 from ..logic.clustering_analysis import get_all_clustering_results, run_single_clustering_model
 
+# ===== CORE UI FOR CLUSTERING PAGE =====
 class ClusteringPage(QWidget):
     analysis_completed = pyqtSignal(dict)
 
@@ -111,13 +113,20 @@ class ClusteringPage(QWidget):
 
         if model.rowCount() > 0:
             self.results_table.selectRow(0)
-
-            # --- CRITICAL CHANGE: Emit the *full* list of results ---
+            
+            # --- CRITICAL FIX: Ensure all required data is emitted ---
+            best_model = sorted_results[0]
+            dmu_column = self.df.columns[0]
+            labels = run_single_clustering_model(self.df, self.selected_features, best_model['algorithm'], best_model['k'])
+            final_clusters_df = pd.DataFrame({'DMU': self.df[dmu_column], 'cluster': labels})
+            
             self.analysis_completed.emit({
-                'dataframe': self.df,
-                'selected_features': self.selected_features,
-                'all_results': all_results # Pass the entire comparison table
+                'dataframe': self.df,              # <-- ADD THIS KEY
+                'selected_features': self.selected_features, # <-- ADD THIS KEY
+                'clusters_df': final_clusters_df,
+                'all_results': all_results
             })
+
             
     def on_result_selection_changed(self, selected, deselected):
         if not selected.indexes() or self.df is None: return
@@ -136,7 +145,6 @@ class ClusteringPage(QWidget):
                 dmu_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 cluster_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 dmu_item.setFlags(dmu_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                cluster_item.setFlags(cluster_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
                 dmu_model.appendRow([dmu_item, cluster_item])
             self.dmu_table.setModel(dmu_model)
             self.dmu_table.resizeColumnsToContents()
