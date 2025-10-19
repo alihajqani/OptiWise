@@ -4,3 +4,5 @@ pandas
 openpyxl
 scikit-learn
 scikit-learn-extra
+pulp
+numpy
