@@ -1,9 +1,11 @@
+# ===== IMPORTS & DEPENDENCIES =====
 from PyQt6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QListWidget, QStackedWidget, QListWidgetItem
 from .styles import load_stylesheet
 from .pages.welcome_page import WelcomePage
 from .pages.clustering_page import ClusteringPage
 from .pages.efficiency_page import EfficiencyPage
 
+# ===== CORE APPLICATION WINDOW =====
 class MainWindow(QMainWindow):
     def __init__(self, version):
         super().__init__()
@@ -11,8 +13,10 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"OptiWise - Decision Support System v{self.version}")
         self.setGeometry(100, 100, 1200, 800)
         self.setStyleSheet(load_stylesheet())
-        self.latest_clustering_data = None
-
+        
+        # We don't need to store the state here anymore, we will pass it directly.
+        
+        # --- UI Setup ---
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QHBoxLayout(central_widget)
@@ -26,18 +30,28 @@ class MainWindow(QMainWindow):
         self.stacked_widget = QStackedWidget()
         main_layout.addWidget(self.stacked_widget)
 
+        # --- Initialize Pages and Connections ---
         self.setup_pages()
         self.nav_list.currentItemChanged.connect(self.change_page)
         
     def setup_pages(self):
+        # Page 1: Welcome
         self.welcome_page = WelcomePage()
         self.add_page(self.welcome_page, "صفحه اصلی")
 
+        # Page 2: Clustering
         self.clustering_page = ClusteringPage()
-        self.clustering_page.analysis_completed.connect(self.update_clustering_data)
-        self.add_page(self.clustering_page, "تحلیل خوشه‌بندی")
-
+        
+        # Page 3: Efficiency Calculation
+        # Create the instance here so we can connect to it.
         self.efficiency_page = EfficiencyPage()
+
+        # --- CRITICAL FIX: Connect the signal DIRECTLY to the efficiency page's slot ---
+        # When clustering is done, it will directly tell the efficiency page to update.
+        self.clustering_page.analysis_completed.connect(self.efficiency_page.update_with_clustering_data)
+        
+        # Add pages to the layout
+        self.add_page(self.clustering_page, "تحلیل خوشه‌بندی")
         self.add_page(self.efficiency_page, "محاسبه بهره‌وری")
         
         self.nav_list.setCurrentRow(0)
@@ -47,13 +61,7 @@ class MainWindow(QMainWindow):
         self.nav_list.addItem(QListWidgetItem(name))
     
     def change_page(self, current_item):
+        """This method now only handles changing the visible page."""
         if current_item:
             index = self.nav_list.row(current_item)
             self.stacked_widget.setCurrentIndex(index)
-            if self.stacked_widget.widget(index) == self.efficiency_page:
-                self.efficiency_page.update_with_clustering_data(self.latest_clustering_data)
-    
-    def update_clustering_data(self, data):
-        self.latest_clustering_data = data
-        if self.stacked_widget.currentWidget() == self.efficiency_page:
-            self.efficiency_page.update_with_clustering_data(self.latest_clustering_data)
