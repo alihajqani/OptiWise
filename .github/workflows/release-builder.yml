@@ -53,7 +53,7 @@ jobs:
           pip install pyinstaller
 
       - name: Build with PyInstaller using .spec file
-        run: pyinstaller OptiWise_v0.7.1.spec
+        run: pyinstaller OptiWise_v0.7.2.spec
 
       - name: Upload Linux Artifact
         uses: actions/upload-release-asset@v1
@@ -61,7 +61,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: ./dist/OptiWise_v0.7.1
+          asset_path: ./dist/OptiWise_v0.7.2
           asset_name: OptiWise_${{ github.ref_name }}_linux-x64
           asset_content_type: application/octet-stream
 
