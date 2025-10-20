@@ -11,7 +11,7 @@ permissions:
 jobs:
   create_release:
     name: Create GitHub Release
-    runs-on: ubuntu-latest 
+    runs-on: ubuntu-latest
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
@@ -24,13 +24,13 @@ jobs:
           tag_name: ${{ github.ref }}
           release_name: Release ${{ github.ref_name }}
           body: |
-            New release: ${{ github.ref_name }}
+            Automated release for ${{ github.ref_name }}
           draft: false
           prerelease: false
 
   build_linux:
     name: Build for Linux
-    needs: create_release 
+    needs: create_release
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -39,12 +39,12 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11' 
+          python-version: '3.11'
 
-      - name: Install System Dependencies
+      - name: Install System Dependencies for PyQt
         run: |
           sudo apt-get update
-          sudo apt-get install -y coinor-cbc libxcb-cursor0
+          sudo apt-get install -y libxcb-cursor0
 
       - name: Install Python Dependencies
         run: |
@@ -52,7 +52,7 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build with PyInstaller
+      - name: Build with PyInstaller using .spec file
         run: pyinstaller OptiWise_v0.7.1.spec
 
       - name: Upload Linux Artifact
@@ -62,13 +62,13 @@ jobs:
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
           asset_path: ./dist/OptiWise_v0.7.1
-          asset_name: OptiWise_v${{ github.ref_name }}_linux-x64
+          asset_name: OptiWise_${{ github.ref_name }}_linux-x64
           asset_content_type: application/octet-stream
 
   build_windows:
     name: Build for Windows
     needs: create_release
-    runs-on: windows-latest 
+    runs-on: windows-latest
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -84,12 +84,8 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-
       - name: Build with PyInstaller (Windows)
-        run: |
-          Remove-Item -Path hook-pulp.py -ErrorAction SilentlyContinue
-          Remove-Item -Path *.spec -ErrorAction SilentlyContinue
-          pyinstaller --onefile --windowed --name "OptiWise_v${{ github.ref_name }}" main.py
+        run: pyinstaller --onefile --windowed --name "OptiWise_${{ github.ref_name }}" main.py
 
       - name: Upload Windows Artifact
         uses: actions/upload-release-asset@v1
@@ -97,6 +93,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: ./dist/OptiWise_v${{ github.ref_name }}.exe
-          asset_name: OptiWise_v${{ github.ref_name }}_windows-x64.exe
+          asset_path: ./dist/OptiWise_${{ github.ref_name }}.exe
+          asset_name: OptiWise_${{ github.ref_name }}_windows-x64.exe
           asset_content_type: application/vnd.microsoft.portable-executable
