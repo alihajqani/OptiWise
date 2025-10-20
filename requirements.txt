@@ -6,3 +6,4 @@ scikit-learn
 scikit-learn-extra
 pulp
 numpy
+pyinstaller-hooks-contrib
