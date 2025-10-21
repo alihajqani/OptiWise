@@ -1,94 +1,83 @@
-# File: .github/workflows/build-release.yml
 name: Build and Release Executables
 
 on:
   push:
     tags:
-      - 'v*.*.*' # This workflow runs ONLY when you push a new version tag
+      - 'v*.*.*'
 
 jobs:
   build-windows:
     name: Build for Windows
     runs-on: windows-latest
     steps:
-      - name: Check out code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
+      
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-
+          
       - name: Build with PyInstaller
         run: pyinstaller windows.spec
-
-      - name: Archive Windows build
-        run: |
-          Compress-Archive -Path dist/OptiWise_v*-windows/* -DestinationPath OptiWise-windows.zip
-
+        
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
-          name: optiwise-windows-build
-          path: OptiWise-windows.zip
+          name: windows-build
+          path: dist/OptiWise-windows.exe
 
   build-linux:
     name: Build for Linux
     runs-on: ubuntu-latest
     steps:
-      - name: Check out code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
+          
+      - name: Install build essentials (for Linux)
+        run: sudo apt-get update && sudo apt-get install -y zip
+        
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-
+          
       - name: Build with PyInstaller
         run: pyinstaller linux.spec
-
-      - name: Archive Linux build
-        run: |
-          cd dist/OptiWise_v*-linux
-          zip ../../OptiWise-linux.zip ./*
-          cd ../..
-
+        
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
-          name: optiwise-linux-build
-          path: OptiWise-linux.zip
+          name: linux-build
+          path: dist/OptiWise-linux
 
   create-release:
     name: Create GitHub Release
-    needs: [build-windows, build-linux] # This job waits for the builds to finish
+    needs: [build-windows, build-linux]
     runs-on: ubuntu-latest
     permissions:
-      contents: write # This permission is required to create a release
+      contents: write
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
+      - name: Create Zip files for release
+        run: |
+          zip -j OptiWise-windows-${{ github.ref_name }}.zip artifacts/windows-build/OptiWise-windows.exe
+          zip -j OptiWise-linux-${{ github.ref_name }}.zip artifacts/linux-build/OptiWise-linux
+
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
-          body: |
-            Automated release for version ${{ github.ref_name }}.
-            Executables for Windows and Linux are attached.
+          body: Automated release for version ${{ github.ref_name }}.
           files: |
-            artifacts/optiwise-windows-build/OptiWise-windows.zip
-            artifacts/optiwise-linux-build/OptiWise-linux.zip
+            OptiWise-windows-*.zip
+            OptiWise-linux-*.zip

@@ -1,18 +1,16 @@
 # File: windows.spec
 # -*- mode: python ; coding: utf-8 -*-
 
-import pulp
+from PyInstaller.utils.hooks import collect_data_files
 
-# Find the CBC executable path dynamically within the Python environment
-cbc_path = pulp.apis.LpSolverDefault.executableExtension('cbc')
-# The destination is '.', meaning the root directory next to the main .exe
-cbc_binary = (cbc_path, '.')
+# This is a more robust way that should work on GitHub Actions
+pulp_datas = collect_data_files('pulp')
 
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=[cbc_binary],
-    datas=[],
+    binaries=[],
+    datas=pulp_datas,
     hiddenimports=['pulp', 'pulp.apis'],
     hookspath=[],
     runtime_hooks=[],
@@ -23,24 +21,6 @@ a = Analysis(
     noarchive=False
 )
 pyz = PYZ(a.pure, a.zipped_data, cipher=None)
-
-exe = EXE(
-    pyz,
-    a.scripts,
-    [],
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    name='OptiWise_v0.7.3-windows',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=False,
-    runtime_tmpdir=None, 
-    console=False,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None
-)
+exe = EXE(pyz, a.scripts, [], a.binaries, a.zipfiles, a.datas,
+          name='OptiWise-windows', # Simplified name
+          console=False, upx=False)
