@@ -21,18 +21,20 @@ def _solve_single_sbm(k: int, X: np.ndarray, Y: np.ndarray):
 
     # --- Constraints ---
     x0 = X[k, :]
-    prob += w + (1.0 / m) * pulp.lpSum(slack_vars[i] / (x0[i] if x0[i] > 1e-9 else 1e-9) for i in range(m)) == 1
+    
+    # --- CRITICAL FIX: Changed division to multiplication by the reciprocal ---
+    # PuLP does not support `LpVariable / number`.
+    # The correct form is `LpVariable * (1 / number)`.
+    prob += w + (1.0 / m) * pulp.lpSum(slack_vars[i] * (1.0 / (x0[i] if x0[i] > 1e-9 else 1e-9)) for i in range(m)) == 1, "w_slack_relation"
+    # --- END OF FIX ---
     
     for i in range(m):
-        prob += pulp.lpSum(X[j, i] * lambda_vars[j] for j in range(K)) + slack_vars[i] == X[k, i]
+        prob += pulp.lpSum(X[j, i] * lambda_vars[j] for j in range(K)) + slack_vars[i] == X[k, i], f"Input_balance_{i+1}"
     
     for r in range(n):
-        prob += pulp.lpSum(Y[j, r] * lambda_vars[j] for j in range(K)) >= Y[k, r]
+        prob += pulp.lpSum(Y[j, r] * lambda_vars[j] for j in range(K)) >= Y[k, r], f"Output_balance_{r+1}"
 
-    # --- CRITICAL FIX: Add the VRS constraint ---
-    # This forces the sum of lambdas to equal 1, making the model VRS.
     prob += pulp.lpSum(lambda_vars) == 1, "VRS_Constraint"
-    # --- END OF FIX ---
 
     # --- Solve ---
     prob.solve(pulp.PULP_CBC_CMD(msg=False))
