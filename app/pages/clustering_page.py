@@ -1,4 +1,3 @@
-# ===== IMPORTS & DEPENDENCIES =====
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog,
     QTableView, QMessageBox, QGroupBox, QCheckBox, QScrollArea
@@ -10,7 +9,7 @@ import traceback
 
 from ..logic.clustering_analysis import get_all_clustering_results, run_single_clustering_model
 
-# ===== CORE UI FOR CLUSTERING PAGE =====
+
 class ClusteringPage(QWidget):
     analysis_completed = pyqtSignal(dict)
 
@@ -90,7 +89,8 @@ class ClusteringPage(QWidget):
     def display_comparison_results(self, all_results):
         try:
             self.results_table.selectionModel().selectionChanged.disconnect(self.on_result_selection_changed)
-        except TypeError: pass
+        except TypeError:
+            pass
 
         model = QStandardItemModel()
         model.setHorizontalHeaderLabels(["الگوریتم", "تعداد خوشه (k)", "امتیاز سیلوئت", "شاخص دیویس-بولدین"])
@@ -114,22 +114,22 @@ class ClusteringPage(QWidget):
         if model.rowCount() > 0:
             self.results_table.selectRow(0)
             
-            # --- CRITICAL FIX: Ensure all required data is emitted ---
+            # CRITICAL FIX: Ensure all required data is emitted
             best_model = sorted_results[0]
             dmu_column = self.df.columns[0]
             labels = run_single_clustering_model(self.df, self.selected_features, best_model['algorithm'], best_model['k'])
             final_clusters_df = pd.DataFrame({'DMU': self.df[dmu_column], 'cluster': labels})
             
             self.analysis_completed.emit({
-                'dataframe': self.df,              # <-- ADD THIS KEY
-                'selected_features': self.selected_features, # <-- ADD THIS KEY
+                'dataframe': self.df,
+                'selected_features': self.selected_features,
                 'clusters_df': final_clusters_df,
                 'all_results': all_results
             })
 
-            
     def on_result_selection_changed(self, selected, deselected):
-        if not selected.indexes() or self.df is None: return
+        if not selected.indexes() or self.df is None:
+            return
         selected_row = selected.indexes()[0].row()
         model = self.results_table.model()
         algorithm_name = model.item(selected_row, 0).text()
@@ -156,7 +156,8 @@ class ClusteringPage(QWidget):
 
     def load_file_and_show_features(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "انتخاب فایل اکسل", "", "Excel Files (*.xlsx *.xls)")
-        if not file_path: return
+        if not file_path:
+            return
         try:
             self.df = pd.read_excel(file_path)
             self.file_path_label.setText(file_path.split('/')[-1])
