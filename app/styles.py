@@ -1,7 +1,5 @@
-# ===== STYLING & THEME (QSS) =====
-
 def load_stylesheet():
-    """Returns the QSS stylesheet for the application."""
+    """Return the QSS stylesheet for the application."""
     return """
         /* ... Global Styles, QMainWindow, QGroupBox ... */
         QWidget {
