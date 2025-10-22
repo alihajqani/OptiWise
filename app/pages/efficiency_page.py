@@ -1,4 +1,3 @@
-# ===== IMPORTS & DEPENDENCIES =====
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog, QTableView,
     QMessageBox, QGroupBox, QComboBox, QListWidget, QListWidgetItem, QSplitter
@@ -9,15 +8,16 @@ import pandas as pd
 import traceback
 
 from ..logic.dea_analysis import run_dea_analysis
-from ..logic.clustering_analysis import run_single_clustering_model # We need this again
+from ..logic.clustering_analysis import run_single_clustering_model  # We need this again
 
-# ===== HELPER FUNCTION FOR NORMALIZATION =====
+
 def normalize_dmu_name(name):
-    if not isinstance(name, str): name = str(name)
+    if not isinstance(name, str):
+        name = str(name)
     name = name.replace("ي", "ی").replace("ك", "ک")
     return "".join(name.split())
 
-# ===== CORE UI FOR EFFICIENCY PAGE =====
+
 class EfficiencyPage(QWidget):
     def __init__(self):
         super().__init__()
@@ -28,7 +28,7 @@ class EfficiencyPage(QWidget):
         self.initUI()
         
     def initUI(self):
-        # ... (UI is mostly the same, shortened for brevity)
+        # UI layout (unchanged)
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(25, 25, 25, 25); main_layout.setSpacing(15)
         title_label = QLabel("فاز دوم: محاسبه بهره‌وری (DEA)"); title_label.setObjectName("TitleLabel")
@@ -81,10 +81,14 @@ class EfficiencyPage(QWidget):
             self.display_results()
 
     def run_analysis(self):
-        if self.dea_df is None: QMessageBox.warning(self, "داده ناقص", "لطفاً فایل داده بهره‌وری را بارگذاری کنید."); return
+        if self.dea_df is None:
+            QMessageBox.warning(self, "داده ناقص", "لطفاً فایل داده بهره‌وری را بارگذاری کنید.")
+            return
         self.selected_inputs = [item.text() for item in self.inputs_list.selectedItems()]
         selected_outputs = [item.text() for item in self.outputs_list.selectedItems()]
-        if not self.selected_inputs or not selected_outputs: QMessageBox.warning(self, "شاخص انتخاب نشده", "لطفاً شاخص‌های ورودی و خروجی را انتخاب کنید."); return
+        if not self.selected_inputs or not selected_outputs:
+            QMessageBox.warning(self, "شاخص انتخاب نشده", "لطفاً شاخص‌های ورودی و خروجی را انتخاب کنید.")
+            return
 
         try:
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
@@ -93,28 +97,29 @@ class EfficiencyPage(QWidget):
             self.full_dea_results_df = pd.DataFrame(results)
             self.display_results()
         except Exception as e:
-            traceback.print_exc(); QMessageBox.critical(self, "خطا در تحلیل", f"یک خطای پیش‌بینی نشده رخ داد:\n{e}")
-        finally: QApplication.restoreOverrideCursor()
+            traceback.print_exc()
+            QMessageBox.critical(self, "خطا در تحلیل", f"یک خطای پیش‌بینی نشده رخ داد:\n{e}")
+        finally:
+            QApplication.restoreOverrideCursor()
 
     def display_results(self):
-        if self.full_dea_results_df is None: return
+        if self.full_dea_results_df is None:
+            return
         
         final_df = self.full_dea_results_df.copy()
-        
         selected_model_info = self.cluster_filter_combo.currentData()
         
-        # --- CRITICAL FIX: Use the correct keys from the received data ---
+        # CRITICAL FIX: Use the correct keys from the received data
         if selected_model_info and self.clustering_data and 'dataframe' in self.clustering_data:
-            # Re-run the selected model to get its specific labels
-            clustering_df_original = self.clustering_data['dataframe'] # Use 'dataframe' key
-            selected_features = self.clustering_data['selected_features'] # Use 'selected_features' key
+            clustering_df_original = self.clustering_data['dataframe']
+            selected_features = self.clustering_data['selected_features']
             algorithm = selected_model_info['algorithm']
             k = selected_model_info['k']
             
             labels = run_single_clustering_model(clustering_df_original, selected_features, algorithm, k)
             clusters_df = pd.DataFrame({'DMU': clustering_df_original.iloc[:, 0], 'cluster': labels})
 
-            # Merge with the full DEA results
+            # Merge cluster labels with DEA results using normalized names
             final_df['norm_dmu'] = final_df['dmu'].apply(normalize_dmu_name)
             clusters_df['norm_dmu'] = clusters_df['DMU'].apply(normalize_dmu_name)
             final_df = pd.merge(final_df, clusters_df[['norm_dmu', 'cluster']], on='norm_dmu', how='left')
@@ -122,9 +127,7 @@ class EfficiencyPage(QWidget):
             final_df['cluster'] = final_df['cluster'].fillna('-')
         else:
             final_df['cluster'] = '-'
-        # --- END OF FIX ---
 
-        # The rest of the display logic is correct and remains the same
         model = QStandardItemModel()
         headers = ["خوشه", "DMU", "امتیاز بهره‌وری"] + [f"اسلک {inp}" for inp in self.selected_inputs] + ["مجموعه مرجع"]
         model.setHorizontalHeaderLabels(headers)
@@ -134,28 +137,42 @@ class EfficiencyPage(QWidget):
 
         for _, row in final_df.iterrows():
             cluster_val = row['cluster']
-            try: cluster_display = str(int(cluster_val))
-            except (ValueError, TypeError): cluster_display = str(cluster_val)
+            try:
+                cluster_display = str(int(cluster_val))
+            except (ValueError, TypeError):
+                cluster_display = str(cluster_val)
             row_items = [QStandardItem(cluster_display), QStandardItem(str(row['dmu'])),
                          QStandardItem(f"{row.get('efficiency', 0):.4f}")]
-            for inp in self.selected_inputs: row_items.append(QStandardItem(f"{row['slacks'].get(inp, 0):.2f}"))
+            for inp in self.selected_inputs:
+                row_items.append(QStandardItem(f"{row['slacks'].get(inp, 0):.2f}"))
             row_items.append(QStandardItem(row['peers']))
-            for item in row_items: item.setTextAlignment(Qt.AlignmentFlag.AlignCenter); item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            for item in row_items:
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             model.appendRow(row_items)
         
-        self.results_table.setModel(model); self.results_table.resizeColumnsToContents()
+        self.results_table.setModel(model)
+        self.results_table.resizeColumnsToContents()
 
     def filter_display(self):
         self.display_results()
 
     def load_dea_data(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "انتخاب فایل داده بهره‌وری", "", "Excel Files (*.xlsx *.xls)")
-        if not file_path: return
-        try: self.dea_df = pd.read_excel(file_path); self.file_path_label.setText(file_path.split('/')[-1]); self.populate_io_lists(); self.run_button.setEnabled(True)
-        except Exception as e: QMessageBox.critical(self, "خطا در خواندن فایل", f"فایل اکسل قابل پردازش نیست:\n{e}"); self.run_button.setEnabled(False)
+        if not file_path:
+            return
+        try:
+            self.dea_df = pd.read_excel(file_path)
+            self.file_path_label.setText(file_path.split('/')[-1])
+            self.populate_io_lists()
+            self.run_button.setEnabled(True)
+        except Exception as e:
+            QMessageBox.critical(self, "خطا در خواندن فایل", f"فایل اکسل قابل پردازش نیست:\n{e}")
+            self.run_button.setEnabled(False)
 
     def populate_io_lists(self):
         self.inputs_list.clear(); self.outputs_list.clear()
-        if self.dea_df is None: return
+        if self.dea_df is None:
+            return
         for col in self.dea_df.columns[1:]:
             self.inputs_list.addItem(QListWidgetItem(col)); self.outputs_list.addItem(QListWidgetItem(col))
