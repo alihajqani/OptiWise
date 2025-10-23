@@ -1,0 +1,153 @@
+# ===== IMPORTS & DEPENDENCIES =====
+from PyQt6.QtWidgets import (
+    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog, QTableView,
+    QMessageBox, QGroupBox, QListWidget, QListWidgetItem, QSplitter
+)
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QStandardItemModel, QStandardItem
+import pandas as pd
+import traceback
+from ..logic.dea_analysis import run_hr_dea_analysis # تابع جدیدی که خواهیم ساخت
+
+# ===== CORE BUSINESS LOGIC =====
+class HrEfficiencyPage(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.df = None
+        self.initUI()
+        
+    def initUI(self):
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(25, 25, 25, 25)
+        main_layout.setSpacing(15)
+
+        title_label = QLabel("فاز چهارم: محاسبه بهره‌وری نیروی انسانی (مدل BCC)")
+        title_label.setObjectName("TitleLabel")
+        title_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        main_layout.addWidget(title_label)
+
+        # --- Top Section for File Upload ---
+        upload_group = QGroupBox("مرحله ۱: بارگذاری فایل داده پرسنل")
+        upload_group.setAlignment(Qt.AlignmentFlag.AlignRight)
+        upload_layout = QHBoxLayout()
+        self.upload_button = QPushButton("انتخاب فایل اکسل")
+        self.file_path_label = QLabel("هنوز فایلی انتخاب نشده")
+        upload_layout.addWidget(self.upload_button)
+        upload_layout.addWidget(self.file_path_label, 1)
+        upload_group.setLayout(upload_layout)
+        main_layout.addWidget(upload_group)
+
+        # --- Middle Section for I/O and Run ---
+        middle_splitter = QSplitter(Qt.Orientation.Horizontal)
+        
+        io_selection_group = QGroupBox("مرحله ۲: انتخاب شاخص‌های ورودی و خروجی")
+        io_selection_group.setAlignment(Qt.AlignmentFlag.AlignRight)
+        io_layout = QHBoxLayout()
+        self.inputs_list = QListWidget()
+        self.outputs_list = QListWidget()
+        self.inputs_list.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
+        self.outputs_list.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
+        
+        inputs_group = QGroupBox("ورودی‌ها (مثال: حقوق، ساعت کاری)")
+        inputs_group.setAlignment(Qt.AlignmentFlag.AlignRight)
+        inputs_layout = QVBoxLayout()
+        inputs_layout.addWidget(self.inputs_list)
+        inputs_group.setLayout(inputs_layout)
+        
+        outputs_group = QGroupBox("خروجی‌ها (مثال: نمره عملکرد)")
+        outputs_group.setAlignment(Qt.AlignmentFlag.AlignRight)
+        outputs_layout = QVBoxLayout()
+        outputs_layout.addWidget(self.outputs_list)
+        outputs_group.setLayout(outputs_layout)
+        
+        io_layout.addWidget(inputs_group, 1)
+        io_layout.addWidget(outputs_group, 1)
+        io_selection_group.setLayout(io_layout)
+        middle_splitter.addWidget(io_selection_group)
+        
+        run_group = QGroupBox("مرحله ۳: اجرا")
+        run_group.setAlignment(Qt.AlignmentFlag.AlignRight)
+        run_layout = QVBoxLayout()
+        self.run_button = QPushButton("محاسبه بهره‌وری پرسنل")
+        self.run_button.setEnabled(False)
+        run_layout.addWidget(self.run_button)
+        run_group.setLayout(run_layout)
+        middle_splitter.addWidget(run_group)
+        middle_splitter.setSizes([400, 100])
+        main_layout.addWidget(middle_splitter)
+
+        # --- Bottom Section for Results ---
+        results_group = QGroupBox("نتایج بهره‌وری نیروی انسانی")
+        results_group.setAlignment(Qt.AlignmentFlag.AlignRight)
+        results_layout = QVBoxLayout()
+        self.results_table = QTableView()
+        results_layout.addWidget(self.results_table)
+        results_group.setLayout(results_layout)
+        main_layout.addWidget(results_group, 1)
+        
+        # --- Connections ---
+        self.upload_button.clicked.connect(self.load_data)
+        self.run_button.clicked.connect(self.run_analysis)
+
+    def load_data(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "انتخاب فایل داده پرسنل", "", "Excel Files (*.xlsx *.xls)")
+        if not file_path: return
+        try:
+            self.df = pd.read_excel(file_path)
+            self.file_path_label.setText(file_path.split('/')[-1])
+            self.populate_io_lists()
+            self.run_button.setEnabled(True)
+        except Exception as e:
+            QMessageBox.critical(self, "خطا در خواندن فایل", f"فایل اکسل قابل پردازش نیست:\n{e}")
+            self.run_button.setEnabled(False)
+
+    def populate_io_lists(self):
+        self.inputs_list.clear()
+        self.outputs_list.clear()
+        if self.df is None: return
+        # Assuming the first column is employee name/ID
+        for col in self.df.columns[1:]:
+            self.inputs_list.addItem(QListWidgetItem(col))
+            self.outputs_list.addItem(QListWidgetItem(col))
+
+    def run_analysis(self):
+        if self.df is None:
+            QMessageBox.warning(self, "داده ناقص", "لطفاً ابتدا فایل داده را بارگذاری کنید.")
+            return
+        
+        selected_inputs = [item.text() for item in self.inputs_list.selectedItems()]
+        selected_outputs = [item.text() for item in self.outputs_list.selectedItems()]
+        
+        if not selected_inputs or not selected_outputs:
+            QMessageBox.warning(self, "شاخص انتخاب نشده", "لطفاً شاخص‌های ورودی و خروجی را انتخاب کنید.")
+            return
+
+        try:
+            QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+            dmu_column = self.df.columns[0]
+            results = run_hr_dea_analysis(self.df, dmu_column, selected_inputs, selected_outputs)
+            self.display_results(results)
+        except Exception as e:
+            traceback.print_exc()
+            QMessageBox.critical(self, "خطا در تحلیل", f"یک خطای پیش‌بینی نشده رخ داد:\n{e}")
+        finally:
+            QApplication.restoreOverrideCursor()
+
+    def display_results(self, results):
+        sorted_results = sorted(results, key=lambda x: x.get('score', 0), reverse=True)
+        
+        model = QStandardItemModel()
+        model.setHorizontalHeaderLabels(["نام پرسنل", "امتیاز بهره‌وری (BCC)"])
+
+        for res in sorted_results:
+            dmu_item = QStandardItem(str(res['dmu']))
+            score_item = QStandardItem(f"{res.get('score', 0):.4f}")
+            
+            for item in [dmu_item, score_item]:
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            
+            model.appendRow([dmu_item, score_item])
+        
+        self.results_table.setModel(model)
+        self.results_table.resizeColumnsToContents()
