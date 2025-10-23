@@ -4,6 +4,7 @@ from .pages.welcome_page import WelcomePage
 from .pages.clustering_page import ClusteringPage
 from .pages.efficiency_page import EfficiencyPage
 from .pages.ranking_page import RankingPage
+from .pages.hr_efficiency_page import HrEfficiencyPage
 
 class MainWindow(QMainWindow):
 	def __init__(self, version):
@@ -40,17 +41,19 @@ class MainWindow(QMainWindow):
 		self.clustering_page = ClusteringPage()
 		self.efficiency_page = EfficiencyPage()
 		self.ranking_page = RankingPage()
+		self.hr_efficiency_page = HrEfficiencyPage() # Instantiate the new page
 
 		# Connect clustering results to efficiency page
 		self.clustering_page.analysis_completed.connect(self.efficiency_page.update_with_clustering_data)
 
 		# Add pages to stack and navigation
-		self.add_page(self.clustering_page, "تحلیل خوشه‌بندی")
-		self.add_page(self.efficiency_page, "محاسبه بهره‌وری")
-		self.add_page(self.ranking_page, "رتبه‌بندی واحدها")
+		self.add_page(self.clustering_page, "۱. تحلیل خوشه‌بندی")
+		self.add_page(self.efficiency_page, "۲. محاسبه بهره‌وری واحد")
+		self.add_page(self.ranking_page, "۳. رتبه‌بندی واحدها")
+		self.add_page(self.hr_efficiency_page, "۴. بهره‌وری نیروی انسانی") # Add the new page to the nav
 
 		self.nav_list.setCurrentRow(0)
-
+		
 	def add_page(self, widget, name):
 		self.stacked_widget.addWidget(widget)
 		self.nav_list.addItem(QListWidgetItem(name))
