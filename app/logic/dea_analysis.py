@@ -1,8 +1,10 @@
+# ===== IMPORTS & DEPENDENCIES =====
 import pandas as pd
 import numpy as np
 import pulp
+from scipy.optimize import linprog 
 
-
+# ===== CORE BUSINESS LOGIC =====
 def _solve_single_sbm(k: int, X: np.ndarray, Y: np.ndarray, exclude_dmu_index: int = None):
     """
     Solve the SBM-VRS model. Can exclude one DMU from the reference set for super-efficiency.
@@ -126,4 +128,77 @@ def run_ranking_dea(df: pd.DataFrame, dmu_column: str, inputs: list, outputs: li
 
     # Step 3: Format results
     results = [{"dmu": dmu_names[k], "score": scores[k]} for k in range(K)]
+    return results
+
+
+def run_hr_dea_analysis(df: pd.DataFrame, dmu_column: str, inputs: list, outputs: list):
+    """
+    Calculates efficiency scores using the PRIMAL formulation of the input-oriented BCC model.
+    This model directly solves for the efficiency score (theta) for each DMU.
+    The logic is an exact, production-ready replica of the validated debug script.
+    """
+    # --- 1. Data Preparation ---
+    required_cols = [dmu_column] + inputs + outputs
+    if not all(col in df.columns for col in required_cols):
+        raise ValueError("برخی ستون‌ها در دیتافریم یافت نشدند.")
+
+    work_df = df[required_cols].copy()
+    work_df[inputs + outputs] = work_df[inputs + outputs].apply(pd.to_numeric, errors="coerce").fillna(1e-6)
+    for col in inputs + outputs:
+        work_df[col] = work_df[col].clip(lower=1e-6)
+
+    dmu_names = work_df[dmu_column].values
+    X = work_df[inputs].values   # Shape: (n_dmus, n_inputs)
+    Y = work_df[outputs].values  # Shape: (n_dmus, n_outputs)
+    
+    n_dmus, n_inputs, n_outputs = X.shape[0], X.shape[1], Y.shape[1]
+
+    results = []
+
+    # --- 2. Solve LP for each DMU ---
+    for k in range(n_dmus):
+        # The variables are [theta, lambda_1, ..., lambda_n_dmus]
+        # Total variables: n_dmus + 1
+
+        # Objective: Minimize theta
+        c = np.zeros(n_dmus + 1)
+        c[0] = 1
+
+        # --- Constraint Matrix Construction (Row-by-Row for fidelity) ---
+        A_ub_rows = []
+        b_ub_rows = []
+
+        # Input constraints: Sum(lambda_j * X_ij) - theta * X_ik <= 0
+        for i in range(n_inputs):
+            row = np.concatenate([[-X[k, i]], X[:, i]])
+            A_ub_rows.append(row)
+            b_ub_rows.append(0)
+
+        # Output constraints: -Sum(lambda_j * Y_rj) <= -Y_rk
+        for r in range(n_outputs):
+            row = np.concatenate([[0], -Y[:, r]])
+            A_ub_rows.append(row)
+            b_ub_rows.append(-Y[k, r])
+        
+        A_ub = np.array(A_ub_rows)
+        b_ub = np.array(b_ub_rows)
+        
+        # Equality constraint: Sum(lambda_j) = 1 (VRS constraint)
+        A_eq = np.zeros((1, n_dmus + 1))
+        A_eq[0, 1:] = 1
+        b_eq = [1]
+        
+        # Bounds for variables: theta >= 0, lambdas >= 0
+        bounds = [(0, None)] * (n_dmus + 1)
+
+        # Solve the linear programming problem
+        res = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
+        
+        score = res.fun if res.success and res.fun is not None else 0.0
+        
+        results.append({
+            'dmu': dmu_names[k],
+            'score': score
+        })
+        
     return results
