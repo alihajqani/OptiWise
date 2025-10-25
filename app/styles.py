@@ -1,3 +1,4 @@
+# ===== IMPORTS & DEPENDENCIES =====
 def load_stylesheet():
     """Return the QSS stylesheet for the application."""
     return """
@@ -35,7 +36,7 @@ def load_stylesheet():
         QPushButton:hover { background-color: #2B508A; }
         QPushButton:pressed { background-color: #122C4D; }
 
-        /* --- NEW: CheckBox Styling for RTL --- */
+        /* --- CheckBox Styling for RTL --- */
         QCheckBox {
             spacing: 5px; /* Space between checkbox and text */
         }
@@ -62,7 +63,20 @@ def load_stylesheet():
             border: 1px solid #D0D0D0; font-weight: bold;
         }
         
-        /* --- NEW: Global Item Alignment for Tables --- */
+        /* --- NEW: Sorting Indicator Style --- */
+        QHeaderView::down-arrow {
+            image: url(./assets/icons/down_arrow.png);
+            width: 16px;
+            height: 16px;
+        }
+
+        QHeaderView::up-arrow {
+            image: url(./assets/icons/up_arrow.png);
+            width: 16px;
+            height: 16px;
+        }
+
+        /* --- Global Item Alignment for Tables --- */
         QTableView::item {
             text-align: center; /* Center-aligns the text in all table cells */
         }

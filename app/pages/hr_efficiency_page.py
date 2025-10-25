@@ -7,9 +7,33 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QStandardItemModel, QStandardItem
 import pandas as pd
 import traceback
-from ..logic.dea_analysis import run_hr_dea_analysis # تابع جدیدی که خواهیم ساخت
+from ..logic.dea_analysis import run_hr_dea_analysis
 
-# ===== CORE BUSINESS LOGIC =====
+
+# ===== UTILITY FUNCTIONS =====
+def create_numeric_item(value, precision=2):
+    """Creates a QStandardItem that sorts numerically."""
+    item = QStandardItem()
+    try:
+        float_val = float(value)
+        item.setData(float_val, Qt.ItemDataRole.UserRole)
+        item.setText(f"{float_val:.{precision}f}")
+    except (ValueError, TypeError):
+        item.setText(str(value)) # Fallback for non-numeric
+    
+    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+    return item
+
+def create_text_item(text):
+    """Creates a standard, non-editable text QStandardItem."""
+    item = QStandardItem(str(text))
+    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+    return item
+
+
+# ===== UI & APPLICATION LOGIC =====
 class HrEfficiencyPage(QWidget):
     def __init__(self):
         super().__init__()
@@ -26,7 +50,6 @@ class HrEfficiencyPage(QWidget):
         title_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         main_layout.addWidget(title_label)
 
-        # --- Top Section for File Upload ---
         upload_group = QGroupBox("مرحله ۱: بارگذاری فایل داده پرسنل")
         upload_group.setAlignment(Qt.AlignmentFlag.AlignRight)
         upload_layout = QHBoxLayout()
@@ -37,7 +60,6 @@ class HrEfficiencyPage(QWidget):
         upload_group.setLayout(upload_layout)
         main_layout.addWidget(upload_group)
 
-        # --- Middle Section for I/O and Run ---
         middle_splitter = QSplitter(Qt.Orientation.Horizontal)
         
         io_selection_group = QGroupBox("مرحله ۲: انتخاب شاخص‌های ورودی و خروجی")
@@ -50,18 +72,15 @@ class HrEfficiencyPage(QWidget):
         
         inputs_group = QGroupBox("ورودی‌ها (مثال: حقوق، ساعت کاری)")
         inputs_group.setAlignment(Qt.AlignmentFlag.AlignRight)
-        inputs_layout = QVBoxLayout()
-        inputs_layout.addWidget(self.inputs_list)
+        inputs_layout = QVBoxLayout(); inputs_layout.addWidget(self.inputs_list)
         inputs_group.setLayout(inputs_layout)
         
         outputs_group = QGroupBox("خروجی‌ها (مثال: نمره عملکرد)")
         outputs_group.setAlignment(Qt.AlignmentFlag.AlignRight)
-        outputs_layout = QVBoxLayout()
-        outputs_layout.addWidget(self.outputs_list)
+        outputs_layout = QVBoxLayout(); outputs_layout.addWidget(self.outputs_list)
         outputs_group.setLayout(outputs_layout)
         
-        io_layout.addWidget(inputs_group, 1)
-        io_layout.addWidget(outputs_group, 1)
+        io_layout.addWidget(inputs_group, 1); io_layout.addWidget(outputs_group, 1)
         io_selection_group.setLayout(io_layout)
         middle_splitter.addWidget(io_selection_group)
         
@@ -76,16 +95,16 @@ class HrEfficiencyPage(QWidget):
         middle_splitter.setSizes([400, 100])
         main_layout.addWidget(middle_splitter)
 
-        # --- Bottom Section for Results ---
         results_group = QGroupBox("نتایج بهره‌وری نیروی انسانی")
         results_group.setAlignment(Qt.AlignmentFlag.AlignRight)
         results_layout = QVBoxLayout()
         self.results_table = QTableView()
+        # --- SORTING ENABLED ---
+        self.results_table.setSortingEnabled(True)
         results_layout.addWidget(self.results_table)
         results_group.setLayout(results_layout)
         main_layout.addWidget(results_group, 1)
         
-        # --- Connections ---
         self.upload_button.clicked.connect(self.load_data)
         self.run_button.clicked.connect(self.run_analysis)
 
@@ -102,10 +121,8 @@ class HrEfficiencyPage(QWidget):
             self.run_button.setEnabled(False)
 
     def populate_io_lists(self):
-        self.inputs_list.clear()
-        self.outputs_list.clear()
+        self.inputs_list.clear(); self.outputs_list.clear()
         if self.df is None: return
-        # Assuming the first column is employee name/ID
         for col in self.df.columns[1:]:
             self.inputs_list.addItem(QListWidgetItem(col))
             self.outputs_list.addItem(QListWidgetItem(col))
@@ -134,20 +151,18 @@ class HrEfficiencyPage(QWidget):
             QApplication.restoreOverrideCursor()
 
     def display_results(self, results):
+        # Initial sort before displaying, table sort will take over from here
         sorted_results = sorted(results, key=lambda x: x.get('score', 0), reverse=True)
         
         model = QStandardItemModel()
         model.setHorizontalHeaderLabels(["نام پرسنل", "امتیاز بهره‌وری (BCC)"])
 
         for res in sorted_results:
-            dmu_item = QStandardItem(str(res['dmu']))
-            score_item = QStandardItem(f"{res.get('score', 0):.4f}")
-            
-            for item in [dmu_item, score_item]:
-                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            
-            model.appendRow([dmu_item, score_item])
+            row = [
+                create_text_item(res['dmu']),
+                create_numeric_item(res.get('score', 0), precision=2)
+            ]
+            model.appendRow(row)
         
         self.results_table.setModel(model)
         self.results_table.resizeColumnsToContents()

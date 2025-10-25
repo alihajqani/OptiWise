@@ -1,3 +1,4 @@
+# ===== IMPORTS & DEPENDENCIES =====
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog, QTableView,
     QMessageBox, QGroupBox, QListWidget, QListWidgetItem, QSplitter
@@ -10,6 +11,30 @@ import traceback
 from ..logic.dea_analysis import run_ranking_dea
 
 
+# ===== UTILITY FUNCTIONS =====
+def create_numeric_item(value, precision=2):
+    """Creates a QStandardItem that sorts numerically."""
+    item = QStandardItem()
+    try:
+        float_val = float(value)
+        item.setData(float_val, Qt.ItemDataRole.UserRole)
+        item.setText(f"{float_val:.{precision}f}")
+    except (ValueError, TypeError):
+        item.setText(str(value)) # Fallback for non-numeric
+    
+    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+    return item
+
+def create_text_item(text):
+    """Creates a standard, non-editable text QStandardItem."""
+    item = QStandardItem(str(text))
+    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+    return item
+
+
+# ===== UI & APPLICATION LOGIC =====
 class RankingPage(QWidget):
     def __init__(self):
         super().__init__()
@@ -43,16 +68,19 @@ class RankingPage(QWidget):
         middle_splitter.addWidget(run_group); middle_splitter.setSizes([400, 100]); main_layout.addWidget(middle_splitter)
 
         results_group = QGroupBox("نتایج رتبه‌بندی"); results_group.setAlignment(Qt.AlignmentFlag.AlignRight)
-        results_layout = QVBoxLayout(); self.results_table = QTableView()
-        results_layout.addWidget(self.results_table); results_group.setLayout(results_layout)
+        results_layout = QVBoxLayout()
+        self.results_table = QTableView()
+        # --- SORTING ENABLED ---
+        self.results_table.setSortingEnabled(True)
+        results_layout.addWidget(self.results_table)
+        results_group.setLayout(results_layout)
         main_layout.addWidget(results_group, 1)
         
         self.upload_button.clicked.connect(self.load_data); self.run_button.clicked.connect(self.run_analysis)
 
     def load_data(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "انتخاب فایل داده", "", "Excel Files (*.xlsx *.xls)")
-        if not file_path:
-            return
+        if not file_path: return
         try:
             self.df = pd.read_excel(file_path)
             self.file_path_label.setText(file_path.split('/')[-1])
@@ -62,8 +90,7 @@ class RankingPage(QWidget):
 
     def populate_io_lists(self):
         self.inputs_list.clear(); self.outputs_list.clear()
-        if self.df is None:
-            return
+        if self.df is None: return
         for col in self.df.columns[1:]:
             self.inputs_list.addItem(QListWidgetItem(col))
             self.outputs_list.addItem(QListWidgetItem(col))
@@ -90,22 +117,22 @@ class RankingPage(QWidget):
             QApplication.restoreOverrideCursor()
 
     def display_results(self, results):
-        # Sort by score in descending order to get the rank
-        sorted_results = sorted(results, key=lambda x: x.get('score', 0) or 0, reverse=True)
-        
+        # We don't need to pre-sort here, the table will handle it.
         model = QStandardItemModel()
         model.setHorizontalHeaderLabels(["رتبه", "واحد تصمیم‌گیرنده (DMU)", "امتیاز ابرکارایی"])
 
+        # We need to calculate ranks based on scores first
+        sorted_results = sorted(results, key=lambda x: x.get('score', 0) or 0, reverse=True)
+
         for i, res in enumerate(sorted_results):
-            rank_item = QStandardItem(str(i + 1))
-            dmu_item = QStandardItem(str(res['dmu']))
-            score_item = QStandardItem(f"{res.get('score', 0):.4f}")
-            
-            for item in [rank_item, dmu_item, score_item]:
-                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-            
-            model.appendRow([rank_item, dmu_item, score_item])
+            row = [
+                create_numeric_item(i + 1, precision=0),
+                create_text_item(res['dmu']),
+                create_numeric_item(res.get('score', 0), precision=2)
+            ]
+            model.appendRow(row)
         
         self.results_table.setModel(model)
         self.results_table.resizeColumnsToContents()
+        # Set initial sort order by Rank (column 0), ascending
+        self.results_table.sortByColumn(0, Qt.SortOrder.AscendingOrder)
