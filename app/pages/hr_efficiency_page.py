@@ -1,7 +1,7 @@
-# ===== IMPORTS & DEPENDENCIES =====
+#===== IMPORTS & DEPENDENCIES =====
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog, QTableView,
-    QMessageBox, QGroupBox, QListWidget, QListWidgetItem, QSplitter
+    QMessageBox, QGroupBox, QListWidget, QListWidgetItem, QSplitter, QCheckBox
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QStandardItemModel, QStandardItem
@@ -10,7 +10,7 @@ import traceback
 from ..logic.dea_analysis import run_hr_dea_analysis
 
 
-# ===== UTILITY FUNCTIONS =====
+#===== UTILITY FUNCTIONS =====
 def create_numeric_item(value, precision=2):
     """Creates a QStandardItem that sorts numerically."""
     item = QStandardItem()
@@ -33,7 +33,7 @@ def create_text_item(text):
     return item
 
 
-# ===== UI & APPLICATION LOGIC =====
+#===== UI & APPLICATION LOGIC =====
 class HrEfficiencyPage(QWidget):
     def __init__(self):
         super().__init__()
@@ -45,7 +45,7 @@ class HrEfficiencyPage(QWidget):
         main_layout.setContentsMargins(25, 25, 25, 25)
         main_layout.setSpacing(15)
 
-        title_label = QLabel("فاز چهارم: محاسبه بهره‌وری نیروی انسانی (مدل BCC)")
+        title_label = QLabel("ماژول محاسبه بهره‌وری نیروی انسانی (مدل BCC)")
         title_label.setObjectName("TitleLabel")
         title_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         main_layout.addWidget(title_label)
@@ -64,24 +64,36 @@ class HrEfficiencyPage(QWidget):
         
         io_selection_group = QGroupBox("مرحله ۲: انتخاب شاخص‌های ورودی و خروجی")
         io_selection_group.setAlignment(Qt.AlignmentFlag.AlignRight)
-        io_layout = QHBoxLayout()
-        self.inputs_list = QListWidget()
-        self.outputs_list = QListWidget()
-        self.inputs_list.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
-        self.outputs_list.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
         
-        inputs_group = QGroupBox("ورودی‌ها (مثال: حقوق، ساعت کاری)")
+        # --- Create main layout for I/O selection ---
+        io_main_layout = QHBoxLayout()
+        
+        # --- Input Section ---
+        inputs_group = QGroupBox("ورودی‌ها")
         inputs_group.setAlignment(Qt.AlignmentFlag.AlignRight)
-        inputs_layout = QVBoxLayout(); inputs_layout.addWidget(self.inputs_list)
+        inputs_layout = QVBoxLayout()
+        self.inputs_select_all_cb = QCheckBox("همه")
+        self.inputs_list = QListWidget()
+        self.inputs_list.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
+        inputs_layout.addWidget(self.inputs_select_all_cb)
+        inputs_layout.addWidget(self.inputs_list)
         inputs_group.setLayout(inputs_layout)
         
-        outputs_group = QGroupBox("خروجی‌ها (مثال: نمره عملکرد)")
+        # --- Output Section ---
+        outputs_group = QGroupBox("خروجی‌ها")
         outputs_group.setAlignment(Qt.AlignmentFlag.AlignRight)
-        outputs_layout = QVBoxLayout(); outputs_layout.addWidget(self.outputs_list)
+        outputs_layout = QVBoxLayout()
+        self.outputs_select_all_cb = QCheckBox("همه")
+        self.outputs_list = QListWidget()
+        self.outputs_list.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
+        outputs_layout.addWidget(self.outputs_select_all_cb)
+        outputs_layout.addWidget(self.outputs_list)
         outputs_group.setLayout(outputs_layout)
+
+        io_main_layout.addWidget(inputs_group, 1)
+        io_main_layout.addWidget(outputs_group, 1)
         
-        io_layout.addWidget(inputs_group, 1); io_layout.addWidget(outputs_group, 1)
-        io_selection_group.setLayout(io_layout)
+        io_selection_group.setLayout(io_main_layout)
         middle_splitter.addWidget(io_selection_group)
         
         run_group = QGroupBox("مرحله ۳: اجرا")
@@ -99,14 +111,54 @@ class HrEfficiencyPage(QWidget):
         results_group.setAlignment(Qt.AlignmentFlag.AlignRight)
         results_layout = QVBoxLayout()
         self.results_table = QTableView()
-        # --- SORTING ENABLED ---
         self.results_table.setSortingEnabled(True)
         results_layout.addWidget(self.results_table)
         results_group.setLayout(results_layout)
         main_layout.addWidget(results_group, 1)
         
+        # --- Connections ---
         self.upload_button.clicked.connect(self.load_data)
         self.run_button.clicked.connect(self.run_analysis)
+        self.inputs_select_all_cb.stateChanged.connect(self.toggle_select_all_inputs)
+        self.outputs_select_all_cb.stateChanged.connect(self.toggle_select_all_outputs)
+        self.inputs_list.itemSelectionChanged.connect(self.update_inputs_checkbox_state)
+        self.outputs_list.itemSelectionChanged.connect(self.update_outputs_checkbox_state)
+
+    def toggle_select_all_inputs(self, state):
+        self.inputs_list.itemSelectionChanged.disconnect(self.update_inputs_checkbox_state)
+        if Qt.CheckState(state) == Qt.CheckState.Checked:
+            self.inputs_list.selectAll()
+        else:
+            self.inputs_list.clearSelection()
+        self.inputs_list.itemSelectionChanged.connect(self.update_inputs_checkbox_state)
+
+    def toggle_select_all_outputs(self, state):
+        self.outputs_list.itemSelectionChanged.disconnect(self.update_outputs_checkbox_state)
+        if Qt.CheckState(state) == Qt.CheckState.Checked:
+            self.outputs_list.selectAll()
+        else:
+            self.outputs_list.clearSelection()
+        self.outputs_list.itemSelectionChanged.connect(self.update_outputs_checkbox_state)
+
+    def update_inputs_checkbox_state(self):
+        self.inputs_select_all_cb.stateChanged.disconnect(self.toggle_select_all_inputs)
+        if self.inputs_list.count() > 0 and len(self.inputs_list.selectedItems()) == self.inputs_list.count():
+            self.inputs_select_all_cb.setCheckState(Qt.CheckState.Checked)
+        elif len(self.inputs_list.selectedItems()) == 0:
+            self.inputs_select_all_cb.setCheckState(Qt.CheckState.Unchecked)
+        else:
+            self.inputs_select_all_cb.setCheckState(Qt.CheckState.PartiallyChecked)
+        self.inputs_select_all_cb.stateChanged.connect(self.toggle_select_all_inputs)
+
+    def update_outputs_checkbox_state(self):
+        self.outputs_select_all_cb.stateChanged.disconnect(self.toggle_select_all_outputs)
+        if self.outputs_list.count() > 0 and len(self.outputs_list.selectedItems()) == self.outputs_list.count():
+            self.outputs_select_all_cb.setCheckState(Qt.CheckState.Checked)
+        elif len(self.outputs_list.selectedItems()) == 0:
+            self.outputs_select_all_cb.setCheckState(Qt.CheckState.Unchecked)
+        else:
+            self.outputs_select_all_cb.setCheckState(Qt.CheckState.PartiallyChecked)
+        self.outputs_select_all_cb.stateChanged.connect(self.toggle_select_all_outputs)
 
     def load_data(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "انتخاب فایل داده پرسنل", "", "Excel Files (*.xlsx *.xls)")
@@ -126,6 +178,10 @@ class HrEfficiencyPage(QWidget):
         for col in self.df.columns[1:]:
             self.inputs_list.addItem(QListWidgetItem(col))
             self.outputs_list.addItem(QListWidgetItem(col))
+        
+        # After populating, update checkbox state
+        self.update_inputs_checkbox_state()
+        self.update_outputs_checkbox_state()
 
     def run_analysis(self):
         if self.df is None:

@@ -1,10 +1,10 @@
-# ===== IMPORTS & DEPENDENCIES =====
+#===== IMPORTS & DEPENDENCIES =====
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog, QTableView,
-    QMessageBox, QGroupBox, QComboBox, QListWidget, QListWidgetItem, QSplitter
+    QMessageBox, QGroupBox, QComboBox, QListWidget, QListWidgetItem, QSplitter, QCheckBox
 )
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QStandardItemModel, QStandardItem
+from PyQt6.QtGui import QStandardItemModel, QStandardItem, QColor
 import pandas as pd
 import traceback
 
@@ -12,7 +12,30 @@ from ..logic.dea_analysis import run_dea_analysis
 from ..logic.clustering_analysis import run_single_clustering_model
 
 
-# ===== UTILITY FUNCTIONS =====
+#===== UTILITY FUNCTIONS =====
+
+# --- COLOR PALETTE for cluster highlighting ---
+CLUSTER_COLORS = [
+    "#E6F7FF",  # Light Blue
+    "#F6FFED",  # Light Green
+    "#FFFBE6",  # Light Yellow
+    "#FFF1F0",  # Light Red/Pink
+    "#F9F0FF",  # Light Purple
+    "#E6FFFB",  # Light Cyan
+    "#FCFFE6",  # Light Lime
+    "#FFF7E6"   # Light Orange
+]
+
+def get_color_for_cluster(cluster_id):
+    """Returns a consistent color for a given cluster ID."""
+    try:
+        cluster_id = int(cluster_id)
+        if cluster_id >= 0:
+            return QColor(CLUSTER_COLORS[cluster_id % len(CLUSTER_COLORS)])
+    except (ValueError, TypeError):
+        pass # Handle cases where cluster_id is not a valid number (e.g., '-')
+    return None # No color
+
 def create_numeric_item(value, precision=2):
     """Creates a QStandardItem that sorts numerically."""
     item = QStandardItem()
@@ -42,7 +65,7 @@ def normalize_dmu_name(name):
     return "".join(name.split())
 
 
-# ===== UI & APPLICATION LOGIC =====
+#===== UI & APPLICATION LOGIC =====
 class EfficiencyPage(QWidget):
     def __init__(self):
         super().__init__()
@@ -55,7 +78,7 @@ class EfficiencyPage(QWidget):
     def initUI(self):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(25, 25, 25, 25); main_layout.setSpacing(15)
-        title_label = QLabel("فاز دوم: محاسبه بهره‌وری (DEA)"); title_label.setObjectName("TitleLabel")
+        title_label = QLabel("ماژول محاسبه بهره‌وری (DEA)"); title_label.setObjectName("TitleLabel")
         title_label.setAlignment(Qt.AlignmentFlag.AlignRight); main_layout.addWidget(title_label)
         top_controls_layout = QHBoxLayout()
         upload_group = QGroupBox("مرحله ۱: بارگذاری فایل داده بهره‌وری"); upload_group.setAlignment(Qt.AlignmentFlag.AlignRight)
@@ -65,12 +88,40 @@ class EfficiencyPage(QWidget):
         top_controls_layout.addWidget(upload_group, 1); main_layout.addLayout(top_controls_layout)
         middle_splitter = QSplitter(Qt.Orientation.Horizontal)
         io_selection_group = QGroupBox("مرحله ۲: انتخاب شاخص‌های ورودی و خروجی"); io_selection_group.setAlignment(Qt.AlignmentFlag.AlignRight)
-        io_layout = QHBoxLayout(); self.inputs_list = QListWidget(); self.outputs_list = QListWidget()
-        self.inputs_list.setSelectionMode(QListWidget.SelectionMode.MultiSelection); self.outputs_list.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
-        inputs_group = QGroupBox("ورودی‌ها"); inputs_group.setAlignment(Qt.AlignmentFlag.AlignRight); inputs_layout = QVBoxLayout(); inputs_layout.addWidget(self.inputs_list); inputs_group.setLayout(inputs_layout)
-        outputs_group = QGroupBox("خروجی‌ها"); outputs_group.setAlignment(Qt.AlignmentFlag.AlignRight); outputs_layout = QVBoxLayout(); outputs_layout.addWidget(self.outputs_list); outputs_group.setLayout(outputs_layout)
-        io_layout.addWidget(inputs_group, 1); io_layout.addWidget(outputs_group, 1)
-        io_selection_group.setLayout(io_layout); middle_splitter.addWidget(io_selection_group)
+        
+        # --- Create main layout for I/O selection ---
+        io_main_layout = QHBoxLayout()
+        
+        # --- Input Section ---
+        inputs_main_v_layout = QVBoxLayout()
+        inputs_group = QGroupBox("ورودی‌ها"); inputs_group.setAlignment(Qt.AlignmentFlag.AlignRight)
+        inputs_layout = QVBoxLayout()
+        self.inputs_select_all_cb = QCheckBox("همه")
+        self.inputs_list = QListWidget()
+        self.inputs_list.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
+        inputs_layout.addWidget(self.inputs_select_all_cb)
+        inputs_layout.addWidget(self.inputs_list)
+        inputs_group.setLayout(inputs_layout)
+        inputs_main_v_layout.addWidget(inputs_group)
+        
+        # --- Output Section ---
+        outputs_main_v_layout = QVBoxLayout()
+        outputs_group = QGroupBox("خروجی‌ها"); outputs_group.setAlignment(Qt.AlignmentFlag.AlignRight)
+        outputs_layout = QVBoxLayout()
+        self.outputs_select_all_cb = QCheckBox("همه")
+        self.outputs_list = QListWidget()
+        self.outputs_list.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
+        outputs_layout.addWidget(self.outputs_select_all_cb)
+        outputs_layout.addWidget(self.outputs_list)
+        outputs_group.setLayout(outputs_layout)
+        outputs_main_v_layout.addWidget(outputs_group)
+        
+        io_main_layout.addLayout(inputs_main_v_layout, 1)
+        io_main_layout.addLayout(outputs_main_v_layout, 1)
+        
+        io_selection_group.setLayout(io_main_layout)
+        middle_splitter.addWidget(io_selection_group)
+        
         run_group = QGroupBox("مرحله ۳: اجرا"); run_group.setAlignment(Qt.AlignmentFlag.AlignRight)
         run_layout = QVBoxLayout(); self.run_button = QPushButton("محاسبه بهره‌وری"); self.run_button.setEnabled(False)
         run_layout.addWidget(self.run_button); run_group.setLayout(run_layout)
@@ -80,13 +131,55 @@ class EfficiencyPage(QWidget):
         self.cluster_filter_combo = QComboBox(); self.cluster_filter_combo.setEnabled(False)
         results_layout.addWidget(self.cluster_filter_combo)
         self.results_table = QTableView()
-        # --- SORTING ENABLED ---
         self.results_table.setSortingEnabled(True)
         results_layout.addWidget(self.results_table); results_group.setLayout(results_layout)
         main_layout.addWidget(results_group, 1)
-        self.upload_button.clicked.connect(self.load_dea_data); self.run_button.clicked.connect(self.run_analysis)
+        
+        # --- Connections ---
+        self.upload_button.clicked.connect(self.load_dea_data)
+        self.run_button.clicked.connect(self.run_analysis)
         self.cluster_filter_combo.currentIndexChanged.connect(self.filter_display)
+        self.inputs_select_all_cb.stateChanged.connect(self.toggle_select_all_inputs)
+        self.outputs_select_all_cb.stateChanged.connect(self.toggle_select_all_outputs)
+        self.inputs_list.itemSelectionChanged.connect(self.update_inputs_checkbox_state)
+        self.outputs_list.itemSelectionChanged.connect(self.update_outputs_checkbox_state)
 
+    def toggle_select_all_inputs(self, state):
+        self.inputs_list.itemSelectionChanged.disconnect(self.update_inputs_checkbox_state)
+        if Qt.CheckState(state) == Qt.CheckState.Checked:
+            self.inputs_list.selectAll()
+        else:
+            self.inputs_list.clearSelection()
+        self.inputs_list.itemSelectionChanged.connect(self.update_inputs_checkbox_state)
+
+    def toggle_select_all_outputs(self, state):
+        self.outputs_list.itemSelectionChanged.disconnect(self.update_outputs_checkbox_state)
+        if Qt.CheckState(state) == Qt.CheckState.Checked:
+            self.outputs_list.selectAll()
+        else:
+            self.outputs_list.clearSelection()
+        self.outputs_list.itemSelectionChanged.connect(self.update_outputs_checkbox_state)
+
+    def update_inputs_checkbox_state(self):
+        self.inputs_select_all_cb.stateChanged.disconnect(self.toggle_select_all_inputs)
+        if self.inputs_list.count() > 0 and len(self.inputs_list.selectedItems()) == self.inputs_list.count():
+            self.inputs_select_all_cb.setCheckState(Qt.CheckState.Checked)
+        elif len(self.inputs_list.selectedItems()) == 0:
+            self.inputs_select_all_cb.setCheckState(Qt.CheckState.Unchecked)
+        else:
+            self.inputs_select_all_cb.setCheckState(Qt.CheckState.PartiallyChecked)
+        self.inputs_select_all_cb.stateChanged.connect(self.toggle_select_all_inputs)
+
+    def update_outputs_checkbox_state(self):
+        self.outputs_select_all_cb.stateChanged.disconnect(self.toggle_select_all_outputs)
+        if self.outputs_list.count() > 0 and len(self.outputs_list.selectedItems()) == self.outputs_list.count():
+            self.outputs_select_all_cb.setCheckState(Qt.CheckState.Checked)
+        elif len(self.outputs_list.selectedItems()) == 0:
+            self.outputs_select_all_cb.setCheckState(Qt.CheckState.Unchecked)
+        else:
+            self.outputs_select_all_cb.setCheckState(Qt.CheckState.PartiallyChecked)
+        self.outputs_select_all_cb.stateChanged.connect(self.toggle_select_all_outputs)
+        
     def update_with_clustering_data(self, clustering_data):
         self.clustering_data = clustering_data
         self.cluster_filter_combo.clear()
@@ -95,17 +188,14 @@ class EfficiencyPage(QWidget):
             self.cluster_filter_combo.setEnabled(True)
             self.cluster_filter_combo.addItem("نمایش همه (بدون گروه‌بندی)", userData=None)
             
-            # Use the combined score to find the best model for default selection
             best_model_info = sorted(clustering_data['all_results'], key=lambda x: self._calculate_combined_score(x, clustering_data['all_results']), reverse=True)[0]
             
-            # Add the best model first
             best_text = f"⭐ بهترین مدل: {best_model_info['algorithm']} (k={best_model_info['k']})"
             self.cluster_filter_combo.addItem(best_text, userData=best_model_info)
             
-            # Add other models
             sorted_models = sorted(clustering_data['all_results'], key=lambda x: (x['algorithm'], x['k']))
             for model_info in sorted_models:
-                if model_info != best_model_info: # Avoid duplicating the best model
+                if model_info != best_model_info:
                     text = f"{model_info['algorithm']} (k={model_info['k']})"
                     self.cluster_filter_combo.addItem(text, userData=model_info)
         else:
@@ -116,7 +206,6 @@ class EfficiencyPage(QWidget):
             self.display_results()
             
     def _calculate_combined_score(self, result_item, all_results):
-        # Helper to find best model for dropdown
         sil_scores = [res['silhouette'] for res in all_results]
         db_scores = [res['davies_bouldin'] for res in all_results]
         min_sil, max_sil = min(sil_scores), max(sil_scores)
@@ -174,19 +263,26 @@ class EfficiencyPage(QWidget):
         headers = ["خوشه", "DMU", "امتیاز بهره‌وری"] + [f"اسلک {inp}" for inp in self.selected_inputs] + ["مجموعه مرجع"]
         model.setHorizontalHeaderLabels(headers)
 
-        # Sort dataframe before display, table will use this as initial order
         final_df['sort_cluster'] = pd.to_numeric(final_df['cluster'], errors='coerce').fillna(float('inf'))
         final_df = final_df.sort_values(by=['sort_cluster', 'efficiency'])
 
         for _, row in final_df.iterrows():
+            cluster_val = row['cluster']
+            row_color = get_color_for_cluster(cluster_val)
+
             row_items = [
-                create_numeric_item(row['cluster'], precision=0),
+                create_numeric_item(cluster_val, precision=0),
                 create_text_item(row['dmu']),
                 create_numeric_item(row.get('efficiency', 0), precision=2)
             ]
             for inp in self.selected_inputs:
                 row_items.append(create_numeric_item(row['slacks'].get(inp, 0)))
             row_items.append(create_text_item(row['peers']))
+            
+            # --- Apply background color to all items in the row ---
+            if row_color:
+                for item in row_items:
+                    item.setBackground(row_color)
             
             model.appendRow(row_items)
         
@@ -213,3 +309,6 @@ class EfficiencyPage(QWidget):
         if self.dea_df is None: return
         for col in self.dea_df.columns[1:]:
             self.inputs_list.addItem(QListWidgetItem(col)); self.outputs_list.addItem(QListWidgetItem(col))
+        
+        self.update_inputs_checkbox_state()
+        self.update_outputs_checkbox_state()

@@ -47,10 +47,10 @@ class MainWindow(QMainWindow):
 		self.clustering_page.analysis_completed.connect(self.efficiency_page.update_with_clustering_data)
 
 		# Add pages to stack and navigation
-		self.add_page(self.clustering_page, "۱. تحلیل خوشه‌بندی")
-		self.add_page(self.efficiency_page, "۲. محاسبه بهره‌وری واحد")
-		self.add_page(self.ranking_page, "۳. رتبه‌بندی واحدها")
-		self.add_page(self.hr_efficiency_page, "۴. بهره‌وری نیروی انسانی") # Add the new page to the nav
+		self.add_page(self.clustering_page, "تحلیل خوشه‌بندی")
+		self.add_page(self.efficiency_page, "محاسبه بهره‌وری واحد")
+		self.add_page(self.ranking_page, "رتبه‌بندی واحدها")
+		self.add_page(self.hr_efficiency_page, "بهره‌وری نیروی انسانی") # Add the new page to the nav
 
 		self.nav_list.setCurrentRow(0)
 		
