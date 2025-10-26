@@ -5,6 +5,7 @@ from .pages.clustering_page import ClusteringPage
 from .pages.efficiency_page import EfficiencyPage
 from .pages.ranking_page import RankingPage
 from .pages.hr_efficiency_page import HrEfficiencyPage
+from .pages.help_page import HelpPage
 
 class MainWindow(QMainWindow):
 	def __init__(self, version):
@@ -41,7 +42,9 @@ class MainWindow(QMainWindow):
 		self.clustering_page = ClusteringPage()
 		self.efficiency_page = EfficiencyPage()
 		self.ranking_page = RankingPage()
-		self.hr_efficiency_page = HrEfficiencyPage() # Instantiate the new page
+		self.hr_efficiency_page = HrEfficiencyPage()
+		self.help_page = HelpPage()
+		
 
 		# Connect clustering results to efficiency page
 		self.clustering_page.analysis_completed.connect(self.efficiency_page.update_with_clustering_data)
@@ -50,7 +53,8 @@ class MainWindow(QMainWindow):
 		self.add_page(self.clustering_page, "تحلیل خوشه‌بندی")
 		self.add_page(self.efficiency_page, "محاسبه بهره‌وری واحد")
 		self.add_page(self.ranking_page, "رتبه‌بندی واحدها")
-		self.add_page(self.hr_efficiency_page, "بهره‌وری نیروی انسانی") # Add the new page to the nav
+		self.add_page(self.hr_efficiency_page, "بهره‌وری نیروی انسانی")
+		self.add_page(self.help_page, "راهنمای نرم‌افزار")
 
 		self.nav_list.setCurrentRow(0)
 		
