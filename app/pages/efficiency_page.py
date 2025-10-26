@@ -249,6 +249,7 @@ class EfficiencyPage(QWidget):
             k = selected_model_info['k']
             
             labels = run_single_clustering_model(clustering_df_original, selected_features, algorithm, k)
+            labels = [l + 1 for l in labels]
             clusters_df = pd.DataFrame({'DMU': clustering_df_original.iloc[:, 0], 'cluster': labels})
 
             final_df['norm_dmu'] = final_df['dmu'].apply(normalize_dmu_name)

@@ -1,4 +1,4 @@
-#===== IMPORTS & DEPENDENCIES =====
+# ===== IMPORTS & DEPENDENCIES =====
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog, QTableView,
     QMessageBox, QGroupBox, QListWidget, QListWidgetItem, QSplitter, QCheckBox
@@ -10,7 +10,7 @@ import traceback
 from ..logic.dea_analysis import run_hr_dea_analysis
 
 
-#===== UTILITY FUNCTIONS =====
+# ===== UTILITY FUNCTIONS =====
 def create_numeric_item(value, precision=2):
     """Creates a QStandardItem that sorts numerically."""
     item = QStandardItem()
@@ -19,7 +19,7 @@ def create_numeric_item(value, precision=2):
         item.setData(float_val, Qt.ItemDataRole.UserRole)
         item.setText(f"{float_val:.{precision}f}")
     except (ValueError, TypeError):
-        item.setText(str(value)) # Fallback for non-numeric
+        item.setText(str(value))
     
     item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
     item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
@@ -33,7 +33,7 @@ def create_text_item(text):
     return item
 
 
-#===== UI & APPLICATION LOGIC =====
+# ===== UI & APPLICATION LOGIC =====
 class HrEfficiencyPage(QWidget):
     def __init__(self):
         super().__init__()
@@ -65,10 +65,8 @@ class HrEfficiencyPage(QWidget):
         io_selection_group = QGroupBox("مرحله ۲: انتخاب شاخص‌های ورودی و خروجی")
         io_selection_group.setAlignment(Qt.AlignmentFlag.AlignRight)
         
-        # --- Create main layout for I/O selection ---
         io_main_layout = QHBoxLayout()
         
-        # --- Input Section ---
         inputs_group = QGroupBox("ورودی‌ها")
         inputs_group.setAlignment(Qt.AlignmentFlag.AlignRight)
         inputs_layout = QVBoxLayout()
@@ -79,7 +77,6 @@ class HrEfficiencyPage(QWidget):
         inputs_layout.addWidget(self.inputs_list)
         inputs_group.setLayout(inputs_layout)
         
-        # --- Output Section ---
         outputs_group = QGroupBox("خروجی‌ها")
         outputs_group.setAlignment(Qt.AlignmentFlag.AlignRight)
         outputs_layout = QVBoxLayout()
@@ -116,7 +113,6 @@ class HrEfficiencyPage(QWidget):
         results_group.setLayout(results_layout)
         main_layout.addWidget(results_group, 1)
         
-        # --- Connections ---
         self.upload_button.clicked.connect(self.load_data)
         self.run_button.clicked.connect(self.run_analysis)
         self.inputs_select_all_cb.stateChanged.connect(self.toggle_select_all_inputs)
@@ -179,7 +175,6 @@ class HrEfficiencyPage(QWidget):
             self.inputs_list.addItem(QListWidgetItem(col))
             self.outputs_list.addItem(QListWidgetItem(col))
         
-        # After populating, update checkbox state
         self.update_inputs_checkbox_state()
         self.update_outputs_checkbox_state()
 
@@ -198,27 +193,55 @@ class HrEfficiencyPage(QWidget):
         try:
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             dmu_column = self.df.columns[0]
-            results = run_hr_dea_analysis(self.df, dmu_column, selected_inputs, selected_outputs)
-            self.display_results(results)
+            results_list = run_hr_dea_analysis(self.df, dmu_column, selected_inputs, selected_outputs)
+            
+            # Pass the original dataframe along with the results
+            self.display_results(results_list, self.df)
+            
         except Exception as e:
             traceback.print_exc()
             QMessageBox.critical(self, "خطا در تحلیل", f"یک خطای پیش‌بینی نشده رخ داد:\n{e}")
         finally:
             QApplication.restoreOverrideCursor()
 
-    def display_results(self, results):
-        # Initial sort before displaying, table sort will take over from here
-        sorted_results = sorted(results, key=lambda x: x.get('score', 0), reverse=True)
+    def display_results(self, results_list, original_df):
+        results_df = pd.DataFrame(results_list)
         
-        model = QStandardItemModel()
-        model.setHorizontalHeaderLabels(["نام پرسنل", "امتیاز بهره‌وری (BCC)"])
+        # Merge results with original dataframe to get extra columns
+        # The first column of original_df is the key (dmu name)
+        dmu_col_name = original_df.columns[0]
+        merged_df = pd.merge(original_df, results_df, left_on=dmu_col_name, right_on='dmu', how='left')
+        
+        # Initial sort before displaying
+        merged_df = merged_df.sort_values(by='score', ascending=False)
 
-        for res in sorted_results:
-            row = [
-                create_text_item(res['dmu']),
-                create_numeric_item(res.get('score', 0), precision=2)
-            ]
-            model.appendRow(row)
+        model = QStandardItemModel()
+        
+        # --- Dynamically find optional columns ---
+        # Define possible names for optional columns
+        code_col_options = ['کد پرسنلی', 'کدپرسنلی', 'personnel_code', 'code']
+        name_col_options = ['نام و نام خانوادگی', 'نام', 'name', 'fullname']
+        
+        # Find the actual column names present in the dataframe
+        code_col = next((col for col in code_col_options if col in merged_df.columns), None)
+        name_col = next((col for col in name_col_options if col in merged_df.columns), None)
+        
+        # --- Build headers dynamically ---
+        headers = []
+        if code_col: headers.append("کد پرسنلی")
+        if name_col: headers.append("نام و نام خانوادگی")
+        headers.extend(["DMU (از فایل)", "امتیاز بهره‌وری (BCC)"])
+        model.setHorizontalHeaderLabels(headers)
+
+        for _, row in merged_df.iterrows():
+            row_items = []
+            if code_col: row_items.append(create_text_item(row.get(code_col, '')))
+            if name_col: row_items.append(create_text_item(row.get(name_col, '')))
+            row_items.extend([
+                create_text_item(row['dmu']),
+                create_numeric_item(row.get('score', 0), precision=2)
+            ])
+            model.appendRow(row_items)
         
         self.results_table.setModel(model)
         self.results_table.resizeColumnsToContents()

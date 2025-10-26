@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
     QTableView, QMessageBox, QGroupBox, QCheckBox, QScrollArea
 )
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QStandardItemModel, QStandardItem
+from PyQt6.QtGui import QStandardItemModel, QStandardItem, QColor
 import pandas as pd
 import traceback
 
@@ -12,6 +12,32 @@ from ..logic.clustering_analysis import get_all_clustering_results, run_single_c
 
 
 # ===== UTILITY FUNCTIONS =====
+
+# --- COLOR PALETTES ---
+ALGORITHM_COLORS = {
+    "K-Means": QColor("#E6F7FF"),   # Light Blue
+    "K-Medoids": QColor("#F6FFED"), # Light Green
+    "Ward": QColor("#FFF7E6"),      # Light Orange
+}
+CLUSTER_COLORS = [
+    "#E6F7FF", "#F6FFED", "#FFFBE6", "#FFF1F0", "#F9F0FF",
+    "#E6FFFB", "#FCFFE6", "#FFF0F6", "#F0F5FF", "#FEFFE6"
+]
+
+def get_color_for_item(item_name, color_map, color_list=None):
+    """Returns a consistent color for a given item name or index."""
+    if item_name in color_map:
+        return color_map[item_name]
+    if color_list:
+        try:
+            # For cluster IDs which are numeric
+            item_id = int(item_name)
+            if item_id >= 0:
+                return QColor(color_list[item_id % len(color_list)])
+        except (ValueError, TypeError):
+            pass
+    return None
+
 def create_numeric_item(value, precision=4):
     """Creates a QStandardItem that sorts numerically."""
     item = QStandardItem()
@@ -76,7 +102,6 @@ class ClusteringPage(QWidget):
         comparison_group_box.setAlignment(Qt.AlignmentFlag.AlignRight)
         comparison_layout = QVBoxLayout()
         self.results_table = QTableView()
-        # --- SORTING ENABLED ---
         self.results_table.setSortingEnabled(True)
         comparison_layout.addWidget(self.results_table)
         comparison_group_box.setLayout(comparison_layout)
@@ -87,7 +112,6 @@ class ClusteringPage(QWidget):
         dmu_group_box.setAlignment(Qt.AlignmentFlag.AlignRight)
         dmu_layout = QVBoxLayout()
         self.dmu_table = QTableView()
-        # --- SORTING ENABLED ---
         self.dmu_table.setSortingEnabled(True)
         dmu_layout.addWidget(self.dmu_table)
         dmu_group_box.setLayout(dmu_layout)
@@ -130,8 +154,7 @@ class ClusteringPage(QWidget):
     def display_comparison_results(self, all_results):
         try:
             self.results_table.selectionModel().selectionChanged.disconnect(self.on_result_selection_changed)
-        except TypeError:
-            pass
+        except TypeError: pass
 
         model = QStandardItemModel()
         model.setHorizontalHeaderLabels(["الگوریتم", "تعداد خوشه (k)", "امتیاز سیلوئت", "شاخص دیویس-بولدین"])
@@ -139,12 +162,20 @@ class ClusteringPage(QWidget):
         sorted_results = sorted(all_results, key=lambda x: self._calculate_combined_score(x, all_results), reverse=True)
         
         for result in sorted_results:
+            alg_name = result['algorithm']
+            row_color = get_color_for_item(alg_name, ALGORITHM_COLORS)
+            
             row = [
-                create_text_item(result['algorithm']),
+                create_text_item(alg_name),
                 create_numeric_item(result['k'], precision=0),
                 create_numeric_item(result['silhouette'], precision=2),
                 create_numeric_item(result['davies_bouldin'], precision=2)
             ]
+            
+            if row_color:
+                for item in row:
+                    item.setBackground(row_color)
+            
             model.appendRow(row)
         
         self.results_table.setModel(model)
@@ -158,7 +189,8 @@ class ClusteringPage(QWidget):
             best_model = sorted_results[0]
             dmu_column = self.df.columns[0]
             labels = run_single_clustering_model(self.df, self.selected_features, best_model['algorithm'], best_model['k'])
-            final_clusters_df = pd.DataFrame({'DMU': self.df[dmu_column], 'cluster': labels})
+            # Add 1 to labels to start from 1
+            final_clusters_df = pd.DataFrame({'DMU': self.df[dmu_column], 'cluster': [l + 1 for l in labels]})
             self.analysis_completed.emit({
                 'dataframe': self.df,
                 'selected_features': self.selected_features,
@@ -167,8 +199,8 @@ class ClusteringPage(QWidget):
             })
 
     def on_result_selection_changed(self, selected, deselected):
-        if not selected.indexes() or self.df is None:
-            return
+        if not selected.indexes() or self.df is None: return
+        
         selected_row = selected.indexes()[0].row()
         model = self.results_table.model()
         algorithm_name = model.item(selected_row, 0).text()
@@ -178,19 +210,38 @@ class ClusteringPage(QWidget):
         try:
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             dmu_column = self.df.columns[0]
+            # Labels from logic are 0-indexed
             labels = run_single_clustering_model(self.df, self.selected_features, algorithm_name, k)
+            
+            # Create a DataFrame for easy sorting and processing
+            results_df = pd.DataFrame({
+                'dmu': self.df[dmu_column],
+                'label': [l + 1 for l in labels] # Add 1 to start clusters from 1
+            })
+            results_df = results_df.sort_values(by='label')
+            
             dmu_model = QStandardItemModel()
             dmu_model.setHorizontalHeaderLabels(["واحد تصمیم‌گیرنده (DMU)", "شماره خوشه"])
             
-            for dmu, label in zip(self.df[dmu_column], labels):
+            for _, row_data in results_df.iterrows():
+                cluster_id = row_data['label']
+                row_color = get_color_for_item(str(cluster_id), {}, CLUSTER_COLORS)
+                
                 row = [
-                    create_text_item(dmu),
-                    create_numeric_item(label, precision=0)
+                    create_text_item(row_data['dmu']),
+                    create_numeric_item(cluster_id, precision=0)
                 ]
+                
+                if row_color:
+                    for item in row:
+                        item.setBackground(row_color)
+
                 dmu_model.appendRow(row)
                 
             self.dmu_table.setModel(dmu_model)
             self.dmu_table.resizeColumnsToContents()
+            self.dmu_table.sortByColumn(1, Qt.SortOrder.AscendingOrder)
+            
         except Exception as e:
             traceback.print_exc()
             QMessageBox.critical(self, "خطا", f"خطا در اجرای مدل انتخاب شده:\n{e}")
