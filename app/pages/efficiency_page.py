@@ -1,81 +1,33 @@
-#===== IMPORTS & DEPENDENCIES =====
+# ===== IMPORTS & DEPENDENCIES =====
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog, QTableView,
     QMessageBox, QGroupBox, QComboBox, QListWidget, QListWidgetItem, QSplitter, QCheckBox
 )
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QStandardItemModel, QStandardItem, QColor
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QStandardItemModel, QStandardItem
 import pandas as pd
 import traceback
 
 from ..logic.dea_analysis import run_dea_analysis
 from ..logic.clustering_analysis import run_single_clustering_model
+from .utils import create_numeric_item, create_text_item, get_color_for_cluster
 
-
-#===== UTILITY FUNCTIONS =====
-
-# --- COLOR PALETTE for cluster highlighting ---
-CLUSTER_COLORS = [
-    "#E6F7FF",  # Light Blue
-    "#F6FFED",  # Light Green
-    "#FFFBE6",  # Light Yellow
-    "#FFF1F0",  # Light Red/Pink
-    "#F9F0FF",  # Light Purple
-    "#E6FFFB",  # Light Cyan
-    "#FCFFE6",  # Light Lime
-    "#FFF7E6"   # Light Orange
-]
-
-def get_color_for_cluster(cluster_id):
-    """Returns a consistent color for a given cluster ID."""
-    try:
-        cluster_id = int(cluster_id)
-        if cluster_id >= 0:
-            return QColor(CLUSTER_COLORS[cluster_id % len(CLUSTER_COLORS)])
-    except (ValueError, TypeError):
-        pass # Handle cases where cluster_id is not a valid number (e.g., '-')
-    return None # No color
-
-def create_numeric_item(value, precision=2):
-    """Creates a QStandardItem that sorts numerically."""
-    item = QStandardItem()
-    try:
-        float_val = float(value)
-        item.setData(float_val, Qt.ItemDataRole.UserRole)
-        item.setText(f"{float_val:.{precision}f}")
-    except (ValueError, TypeError):
-        item.setText(str(value)) # Fallback for non-numeric
-    
-    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-    return item
-
-def create_text_item(text):
-    """Creates a standard, non-editable text QStandardItem."""
-    item = QStandardItem(str(text))
-    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-    return item
-
-
-def normalize_dmu_name(name):
-    if not isinstance(name, str):
-        name = str(name)
-    name = name.replace("ي", "ی").replace("ك", "ک")
-    return "".join(name.split())
-
-
-#===== UI & APPLICATION LOGIC =====
+# ===== UI & APPLICATION LOGIC =====
 class EfficiencyPage(QWidget):
+    analysis_completed = pyqtSignal(dict)
+    
     def __init__(self):
         super().__init__()
         self.clustering_data = None
         self.dea_df = None
         self.full_dea_results_df = None
         self.selected_inputs = []
+        self.selected_outputs = []
         self.initUI()
-        
+
     def initUI(self):
+        # ... (The initUI layout code is correct and does not need to be changed) ...
+        # ... I am omitting it for brevity ...
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(25, 25, 25, 25); main_layout.setSpacing(15)
         title_label = QLabel("ماژول محاسبه بهره‌وری (DEA)"); title_label.setObjectName("TitleLabel")
@@ -89,11 +41,8 @@ class EfficiencyPage(QWidget):
         middle_splitter = QSplitter(Qt.Orientation.Horizontal)
         io_selection_group = QGroupBox("مرحله ۲: انتخاب شاخص‌های ورودی و خروجی"); io_selection_group.setAlignment(Qt.AlignmentFlag.AlignRight)
         
-        # --- Create main layout for I/O selection ---
         io_main_layout = QHBoxLayout()
         
-        # --- Input Section ---
-        inputs_main_v_layout = QVBoxLayout()
         inputs_group = QGroupBox("ورودی‌ها"); inputs_group.setAlignment(Qt.AlignmentFlag.AlignRight)
         inputs_layout = QVBoxLayout()
         self.inputs_select_all_cb = QCheckBox("همه")
@@ -102,10 +51,7 @@ class EfficiencyPage(QWidget):
         inputs_layout.addWidget(self.inputs_select_all_cb)
         inputs_layout.addWidget(self.inputs_list)
         inputs_group.setLayout(inputs_layout)
-        inputs_main_v_layout.addWidget(inputs_group)
         
-        # --- Output Section ---
-        outputs_main_v_layout = QVBoxLayout()
         outputs_group = QGroupBox("خروجی‌ها"); outputs_group.setAlignment(Qt.AlignmentFlag.AlignRight)
         outputs_layout = QVBoxLayout()
         self.outputs_select_all_cb = QCheckBox("همه")
@@ -114,10 +60,9 @@ class EfficiencyPage(QWidget):
         outputs_layout.addWidget(self.outputs_select_all_cb)
         outputs_layout.addWidget(self.outputs_list)
         outputs_group.setLayout(outputs_layout)
-        outputs_main_v_layout.addWidget(outputs_group)
         
-        io_main_layout.addLayout(inputs_main_v_layout, 1)
-        io_main_layout.addLayout(outputs_main_v_layout, 1)
+        io_main_layout.addWidget(inputs_group, 1)
+        io_main_layout.addWidget(outputs_group, 1)
         
         io_selection_group.setLayout(io_main_layout)
         middle_splitter.addWidget(io_selection_group)
@@ -135,7 +80,6 @@ class EfficiencyPage(QWidget):
         results_layout.addWidget(self.results_table); results_group.setLayout(results_layout)
         main_layout.addWidget(results_group, 1)
         
-        # --- Connections ---
         self.upload_button.clicked.connect(self.load_dea_data)
         self.run_button.clicked.connect(self.run_analysis)
         self.cluster_filter_combo.currentIndexChanged.connect(self.filter_display)
@@ -144,12 +88,15 @@ class EfficiencyPage(QWidget):
         self.inputs_list.itemSelectionChanged.connect(self.update_inputs_checkbox_state)
         self.outputs_list.itemSelectionChanged.connect(self.update_outputs_checkbox_state)
 
+    # --- ADD THESE FUNCTIONS BACK INTO THE CLASS ---
     def toggle_select_all_inputs(self, state):
+        # Temporarily disconnect the signal to prevent infinite loops
         self.inputs_list.itemSelectionChanged.disconnect(self.update_inputs_checkbox_state)
         if Qt.CheckState(state) == Qt.CheckState.Checked:
             self.inputs_list.selectAll()
         else:
             self.inputs_list.clearSelection()
+        # Reconnect the signal
         self.inputs_list.itemSelectionChanged.connect(self.update_inputs_checkbox_state)
 
     def toggle_select_all_outputs(self, state):
@@ -167,6 +114,7 @@ class EfficiencyPage(QWidget):
         elif len(self.inputs_list.selectedItems()) == 0:
             self.inputs_select_all_cb.setCheckState(Qt.CheckState.Unchecked)
         else:
+            # This indicates that some, but not all, items are selected
             self.inputs_select_all_cb.setCheckState(Qt.CheckState.PartiallyChecked)
         self.inputs_select_all_cb.stateChanged.connect(self.toggle_select_all_inputs)
 
@@ -179,7 +127,9 @@ class EfficiencyPage(QWidget):
         else:
             self.outputs_select_all_cb.setCheckState(Qt.CheckState.PartiallyChecked)
         self.outputs_select_all_cb.stateChanged.connect(self.toggle_select_all_outputs)
-        
+    # --- END OF ADDED FUNCTIONS ---
+
+    # ... (The rest of the functions from the last correct version follow)
     def update_with_clustering_data(self, clustering_data):
         self.clustering_data = clustering_data
         self.cluster_filter_combo.clear()
@@ -219,17 +169,26 @@ class EfficiencyPage(QWidget):
             QMessageBox.warning(self, "داده ناقص", "لطفاً فایل داده بهره‌وری را بارگذاری کنید.")
             return
         self.selected_inputs = [item.text() for item in self.inputs_list.selectedItems()]
-        selected_outputs = [item.text() for item in self.outputs_list.selectedItems()]
-        if not self.selected_inputs or not selected_outputs:
+        self.selected_outputs = [item.text() for item in self.outputs_list.selectedItems()]
+        if not self.selected_inputs or not self.selected_outputs:
             QMessageBox.warning(self, "شاخص انتخاب نشده", "لطفاً شاخص‌های ورودی و خروجی را انتخاب کنید.")
             return
 
         try:
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             dmu_column_dea = self.dea_df.columns[0]
-            results = run_dea_analysis(self.dea_df, dmu_column_dea, self.selected_inputs, selected_outputs)
+            results = run_dea_analysis(self.dea_df, dmu_column_dea, self.selected_inputs, self.selected_outputs)
             self.full_dea_results_df = pd.DataFrame(results)
-            self.display_results()
+            
+            final_df, cluster_info_df = self.display_results()
+            
+            if final_df is not None:
+                self.analysis_completed.emit({
+                    "input_df": self.dea_df,
+                    "results_df": self.full_dea_results_df,
+                    "cluster_info": cluster_info_df
+                })
+            
         except Exception as e:
             traceback.print_exc()
             QMessageBox.critical(self, "خطا در تحلیل", f"یک خطای پیش‌بینی نشده رخ داد:\n{e}")
@@ -237,24 +196,41 @@ class EfficiencyPage(QWidget):
             QApplication.restoreOverrideCursor()
 
     def display_results(self):
-        if self.full_dea_results_df is None: return
+        if self.full_dea_results_df is None: 
+            return None, pd.DataFrame()
         
         final_df = self.full_dea_results_df.copy()
         selected_model_info = self.cluster_filter_combo.currentData()
         
+        cluster_info_df = pd.DataFrame()
+
+        def normalize_dmu_name(name):
+            if not isinstance(name, str): name = str(name)
+            name = name.replace("ي", "ی").replace("ك", "ک")
+            return "".join(name.split())
+
         if selected_model_info and self.clustering_data and 'dataframe' in self.clustering_data:
             clustering_df_original = self.clustering_data['dataframe']
-            selected_features = self.clustering_data['selected_features']
-            algorithm = selected_model_info['algorithm']
-            k = selected_model_info['k']
+            clustering_dmu_col = clustering_df_original.columns[0]
             
-            labels = run_single_clustering_model(clustering_df_original, selected_features, algorithm, k)
+            labels = run_single_clustering_model(
+                clustering_df_original, 
+                self.clustering_data['selected_features'], 
+                selected_model_info['algorithm'], 
+                selected_model_info['k']
+            )
             labels = [l + 1 for l in labels]
-            clusters_df = pd.DataFrame({'DMU': clustering_df_original.iloc[:, 0], 'cluster': labels})
-
-            final_df['norm_dmu'] = final_df['dmu'].apply(normalize_dmu_name)
-            clusters_df['norm_dmu'] = clusters_df['DMU'].apply(normalize_dmu_name)
-            final_df = pd.merge(final_df, clusters_df[['norm_dmu', 'cluster']], on='norm_dmu', how='left')
+            
+            cluster_info_df = pd.DataFrame({
+                clustering_dmu_col: clustering_df_original.iloc[:, 0],
+                'cluster': labels
+            })
+            
+            dea_dmu_col = 'dmu'
+            final_df['norm_dmu'] = final_df[dea_dmu_col].apply(normalize_dmu_name)
+            cluster_info_df['norm_dmu'] = cluster_info_df[clustering_dmu_col].apply(normalize_dmu_name)
+            
+            final_df = pd.merge(final_df, cluster_info_df[['norm_dmu', 'cluster']], on='norm_dmu', how='left')
             final_df.drop(columns=['norm_dmu'], inplace=True)
             final_df['cluster'] = final_df['cluster'].fillna('-')
         else:
@@ -280,7 +256,6 @@ class EfficiencyPage(QWidget):
                 row_items.append(create_numeric_item(row['slacks'].get(inp, 0)))
             row_items.append(create_text_item(row['peers']))
             
-            # --- Apply background color to all items in the row ---
             if row_color:
                 for item in row_items:
                     item.setBackground(row_color)
@@ -289,6 +264,8 @@ class EfficiencyPage(QWidget):
         
         self.results_table.setModel(model)
         self.results_table.resizeColumnsToContents()
+        
+        return final_df, cluster_info_df
 
     def filter_display(self):
         self.display_results()
