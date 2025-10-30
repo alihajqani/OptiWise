@@ -9,15 +9,15 @@ import pandas as pd
 import traceback
 
 from ..logic.clustering_analysis import get_all_clustering_results, run_single_clustering_model
+# --- Import helper functions from the central utils file ---
+from .utils import create_numeric_item, create_text_item
 
-
-# ===== UTILITY FUNCTIONS =====
-
-# --- COLOR PALETTES ---
+# ===== COLOR PALETTES (Specific to this page) =====
 ALGORITHM_COLORS = {
-    "K-Means": QColor("#E6F7FF"),   # Light Blue
-    "K-Medoids": QColor("#F6FFED"), # Light Green
-    "Ward": QColor("#FFF7E6"),      # Light Orange
+    "K-Means": QColor("#E6F7FF"),
+    "K-Medoids": QColor("#F6FFED"),
+    "Ward": QColor("#FFF7E6"),
+    "K-Median": QColor("#F0F5FF"),
 }
 CLUSTER_COLORS = [
     "#E6F7FF", "#F6FFED", "#FFFBE6", "#FFF1F0", "#F9F0FF",
@@ -25,35 +25,16 @@ CLUSTER_COLORS = [
 ]
 
 def get_color_for_item(item_name, color_map, color_list=None):
-    """Returns a consistent color for a given item name or index."""
     if item_name in color_map:
         return color_map[item_name]
     if color_list:
         try:
-            # For cluster IDs which are numeric
             item_id = int(item_name)
-            if item_id >= 0:
-                return QColor(color_list[item_id % len(color_list)])
+            if item_id >= 1: # Clusters start from 1
+                return QColor(color_list[(item_id - 1) % len(color_list)])
         except (ValueError, TypeError):
             pass
     return None
-
-def create_numeric_item(value, precision=4):
-    """Creates a QStandardItem that sorts numerically."""
-    item = QStandardItem()
-    item.setData(float(value), Qt.ItemDataRole.UserRole)
-    item.setText(f"{value:.{precision}f}")
-    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-    return item
-
-def create_text_item(text):
-    """Creates a standard, non-editable text QStandardItem."""
-    item = QStandardItem(str(text))
-    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-    return item
-
 
 # ===== UI & APPLICATION LOGIC =====
 class ClusteringPage(QWidget):
@@ -165,7 +146,7 @@ class ClusteringPage(QWidget):
             alg_name = result['algorithm']
             row_color = get_color_for_item(alg_name, ALGORITHM_COLORS)
             
-            row = [
+            row_items = [
                 create_text_item(alg_name),
                 create_numeric_item(result['k'], precision=0),
                 create_numeric_item(result['silhouette'], precision=2),
@@ -173,10 +154,10 @@ class ClusteringPage(QWidget):
             ]
             
             if row_color:
-                for item in row:
+                for item in row_items:
                     item.setBackground(row_color)
             
-            model.appendRow(row)
+            model.appendRow(row_items)
         
         self.results_table.setModel(model)
         self.results_table.resizeColumnsToContents()
@@ -189,7 +170,6 @@ class ClusteringPage(QWidget):
             best_model = sorted_results[0]
             dmu_column = self.df.columns[0]
             labels = run_single_clustering_model(self.df, self.selected_features, best_model['algorithm'], best_model['k'])
-            # Add 1 to labels to start from 1
             final_clusters_df = pd.DataFrame({'DMU': self.df[dmu_column], 'cluster': [l + 1 for l in labels]})
             self.analysis_completed.emit({
                 'dataframe': self.df,
@@ -210,13 +190,11 @@ class ClusteringPage(QWidget):
         try:
             QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
             dmu_column = self.df.columns[0]
-            # Labels from logic are 0-indexed
             labels = run_single_clustering_model(self.df, self.selected_features, algorithm_name, k)
             
-            # Create a DataFrame for easy sorting and processing
             results_df = pd.DataFrame({
                 'dmu': self.df[dmu_column],
-                'label': [l + 1 for l in labels] # Add 1 to start clusters from 1
+                'label': [l + 1 for l in labels]
             })
             results_df = results_df.sort_values(by='label')
             
@@ -227,16 +205,16 @@ class ClusteringPage(QWidget):
                 cluster_id = row_data['label']
                 row_color = get_color_for_item(str(cluster_id), {}, CLUSTER_COLORS)
                 
-                row = [
+                row_items = [
                     create_text_item(row_data['dmu']),
                     create_numeric_item(cluster_id, precision=0)
                 ]
                 
                 if row_color:
-                    for item in row:
+                    for item in row_items:
                         item.setBackground(row_color)
 
-                dmu_model.appendRow(row)
+                dmu_model.appendRow(row_items)
                 
             self.dmu_table.setModel(dmu_model)
             self.dmu_table.resizeColumnsToContents()
