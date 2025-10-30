@@ -11,6 +11,7 @@ from .pages.clustering_page import ClusteringPage
 from .pages.efficiency_page import EfficiencyPage
 from .pages.ranking_page import RankingPage
 from .pages.hr_efficiency_page import HrEfficiencyPage
+from .pages.resource_allocation_page import ResourceAllocationPage
 from .pages.help_page import HelpPage
 
 
@@ -64,7 +65,6 @@ class MainWindow(QMainWindow):
             item.setToolTip("این نسخه منقضی شده است")
 
     def setup_pages(self):
-        # --- MODIFIED: Pass version to WelcomePage ---
         self.welcome_page = WelcomePage(self.version)
         self.add_page(self.welcome_page, "صفحه اصلی")
 
@@ -72,12 +72,15 @@ class MainWindow(QMainWindow):
         self.efficiency_page = EfficiencyPage()
         self.ranking_page = RankingPage()
         self.hr_efficiency_page = HrEfficiencyPage()
+        self.resource_allocation_page = ResourceAllocationPage()
         self.help_page = HelpPage()
         
         self.clustering_page.analysis_completed.connect(self.efficiency_page.update_with_clustering_data)
+        self.efficiency_page.analysis_completed.connect(self.resource_allocation_page.update_data)
 
         self.add_page(self.clustering_page, "تحلیل خوشه‌بندی")
         self.add_page(self.efficiency_page, "محاسبه بهره‌وری واحد")
+        self.add_page(self.resource_allocation_page, "تخصیص بهینه منابع")
         self.add_page(self.ranking_page, "رتبه‌بندی واحدها")
         self.add_page(self.hr_efficiency_page, "بهره‌وری نیروی انسانی")
         self.add_page(self.help_page, "راهنمای نرم‌افزار")
