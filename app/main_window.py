@@ -12,6 +12,8 @@ from .pages.efficiency_page import EfficiencyPage
 from .pages.ranking_page import RankingPage
 from .pages.hr_efficiency_page import HrEfficiencyPage
 from .pages.resource_allocation_page import ResourceAllocationPage
+# --- Import the new page ---
+from .pages.forecast_page import ForecastPage
 from .pages.help_page import HelpPage
 
 
@@ -47,18 +49,16 @@ class MainWindow(QMainWindow):
         
         self.check_license()
 
+    # ... (check_license and _enter_expired_mode remain the same) ...
     def check_license(self):
         validator = LicenseValidator()
         is_expired, message = validator.check_status()
-        
-        if is_expired:
-            self._enter_expired_mode(message)
+        if is_expired: self._enter_expired_mode(message)
 
     def _enter_expired_mode(self, message: str):
         self.welcome_page.show_expiration_message(message)
         self.nav_list.setCurrentRow(0)
         self.stacked_widget.setCurrentIndex(0)
-        
         for i in range(1, self.nav_list.count()):
             item = self.nav_list.item(i)
             item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEnabled)
@@ -73,6 +73,8 @@ class MainWindow(QMainWindow):
         self.ranking_page = RankingPage()
         self.hr_efficiency_page = HrEfficiencyPage()
         self.resource_allocation_page = ResourceAllocationPage()
+        # --- Instantiate the new page ---
+        self.forecast_page = ForecastPage()
         self.help_page = HelpPage()
         
         self.clustering_page.analysis_completed.connect(self.efficiency_page.update_with_clustering_data)
@@ -83,6 +85,8 @@ class MainWindow(QMainWindow):
         self.add_page(self.resource_allocation_page, "تخصیص بهینه منابع")
         self.add_page(self.ranking_page, "رتبه‌بندی واحدها")
         self.add_page(self.hr_efficiency_page, "بهره‌وری نیروی انسانی")
+        # --- Add the new page to the navigation ---
+        self.add_page(self.forecast_page, "پیش‌بینی نیروی انسانی")
         self.add_page(self.help_page, "راهنمای نرم‌افزار")
 
         self.nav_list.setCurrentRow(0)
