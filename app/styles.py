@@ -4,7 +4,7 @@ def load_stylesheet():
     return """
         /* ... Global Styles, QMainWindow, QGroupBox ... */
         QWidget {
-            background-color: #FDFBF5; color: #333333; font-family: Arial, sans-serif;
+            background-color: #FDFBF5; color: #333333; font-family: Tahoma, Arial, sans-serif;
         }
         QMainWindow, QDialog { background-color: #FDFBF5; }
         QGroupBox {
@@ -16,35 +16,60 @@ def load_stylesheet():
             padding: 0 10px; background-color: #FDFBF5;
         }
 
-        /* ... Navigation List ... */
-        QListWidget {
-            border: none; background-color: #1A3E6E; padding: 10px 0px;
+        /* --- Modern Navigation Bar Styles --- */
+        #NavBar {
+            background-color: #1A3E6E;
         }
-        QListWidget::item {
-            padding: 12px 20px; color: #FFFFFF; border-bottom: 1px solid #2B508A;
+        
+        #NavBar QToolButton {
+            color: #FFFFFF;
+            background-color: transparent;
+            border: none;
+            border-radius: 0px; 
+            /* --- UPDATED: Increased right padding to create space next to the icon --- */
+            padding: 15px 30px 15px 20px; /* top, right, bottom, left */
+            font-size: 14px;
+            font-weight: bold;
+            text-align: right;
+            border-bottom: 1px solid #2B508A;
         }
-        QListWidget::item:hover { background-color: #2B508A; }
-        QListWidget::item:selected {
-            background-color: #E6AD30; color: #1A3E6E; font-weight: bold;
+
+        #NavBar QToolButton:hover {
+            background-color: #2B508A;
         }
+
+        #NavBar QToolButton:checked {
+            background-color: #E6AD30;
+            color: #1A3E6E;
+        }
+        
+        #NavBar QToolButton:disabled {
+            color: #708090;
+            background-color: transparent;
+        }
+        
+        #NavBar QToolButton:last-child {
+            border-bottom: none;
+        }
+
 
         /* ... Buttons ... */
         QPushButton {
             background-color: #1A3E6E; color: #FFFFFF; border-radius: 5px;
             padding: 10px 15px; font-size: 14px; font-weight: bold; border: none;
+            cursor: pointer;
         }
         QPushButton:hover { background-color: #2B508A; }
         QPushButton:pressed { background-color: #122C4D; }
 
         /* --- CheckBox Styling for RTL --- */
         QCheckBox {
-            spacing: 5px; /* Space between checkbox and text */
+            spacing: 5px;
         }
         QCheckBox::indicator {
             width: 15px;
             height: 15px;
         }
-
 
         /* ... Labels ... */
         QLabel#TitleLabel {
@@ -54,7 +79,7 @@ def load_stylesheet():
         
         /* --- Table Views --- */
         QTableView {
-            border: 1px solid #D0D0D0; gridline-color: #E0E0E0;
+            border: 1px solid #D0D0D0; gridline-color: #E0E0D0;
             background-color: #FFFFFF;
         }
         
@@ -63,22 +88,20 @@ def load_stylesheet():
             border: 1px solid #D0D0D0; font-weight: bold;
         }
         
-        /* --- NEW: Sorting Indicator Style --- */
+        /* --- Sorting Indicator Style --- */
         QHeaderView::down-arrow {
             image: url(./assets/icons/down_arrow.png);
-            width: 16px;
-            height: 16px;
+            width: 16px; height: 16px;
         }
-
         QHeaderView::up-arrow {
             image: url(./assets/icons/up_arrow.png);
-            width: 16px;
-            height: 16px;
+            width: 16px; height: 16px;
         }
 
         /* --- Global Item Alignment for Tables --- */
         QTableView::item {
-            text-align: center; /* Center-aligns the text in all table cells */
+            padding: 5px;
+            text-align: center;
         }
 
         /* ... ScrollBar ... */
