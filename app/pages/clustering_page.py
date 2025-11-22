@@ -1,18 +1,18 @@
+# ===== SECTION BEING MODIFIED: app/pages/clustering_page.py =====
 # ===== IMPORTS & DEPENDENCIES =====
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog,
-    QTableView, QMessageBox, QGroupBox, QCheckBox, QScrollArea
+    QTableView, QMessageBox, QGroupBox, QCheckBox, QScrollArea, QSizePolicy
 )
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QStandardItemModel, QStandardItem, QColor
+from PyQt6.QtGui import QStandardItemModel, QStandardItem, QColor, QIcon
 import pandas as pd
 import traceback
 
 from ..logic.clustering_analysis import get_all_clustering_results, run_single_clustering_model
-# --- Import helper functions from the central utils file ---
-from .utils import create_numeric_item, create_text_item
+from .utils import create_numeric_item, create_text_item, save_table_to_excel
 
-# ===== COLOR PALETTES (Specific to this page) =====
+# ===== COLOR PALETTES =====
 ALGORITHM_COLORS = {
     "K-Means": QColor("#E6F7FF"),
     "K-Medoids": QColor("#F6FFED"),
@@ -30,7 +30,7 @@ def get_color_for_item(item_name, color_map, color_list=None):
     if color_list:
         try:
             item_id = int(item_name)
-            if item_id >= 1: # Clusters start from 1
+            if item_id >= 1:
                 return QColor(color_list[(item_id - 1) % len(color_list)])
         except (ValueError, TypeError):
             pass
@@ -45,64 +45,122 @@ class ClusteringPage(QWidget):
         self.df = None
         self.feature_checkboxes = []
         self.selected_features = []
+        self.is_fullscreen = False
         self.initUI()
 
     def initUI(self):
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(25, 25, 25, 25); main_layout.setSpacing(15)
+        self.main_layout = QVBoxLayout(self)
+        self.main_layout.setContentsMargins(25, 25, 25, 25)
+        self.main_layout.setSpacing(15)
 
-        title_label = QLabel("ماژول خوشه‌بندی (Clustering)"); title_label.setObjectName("TitleLabel")
-        title_label.setAlignment(Qt.AlignmentFlag.AlignRight); main_layout.addWidget(title_label)
+        # --- Title ---
+        title_label = QLabel("ماژول تحلیل خوشه‌بندی (الگوریتم‌های K-Means, K-Medoids, Ward)")
+        title_label.setObjectName("TitleLabel")
+        title_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.main_layout.addWidget(title_label)
 
-        file_group_box = QGroupBox("مرحله ۱: انتخاب فایل داده")
-        file_group_box.setAlignment(Qt.AlignmentFlag.AlignRight)
-        file_v_layout = QVBoxLayout(); file_h_layout = QHBoxLayout()
+        # --- Step 1: File Upload ---
+        self.file_group_box = QGroupBox("مرحله ۱: انتخاب فایل داده")
+        self.file_group_box.setAlignment(Qt.AlignmentFlag.AlignRight)
+        file_v_layout = QVBoxLayout()
+        file_h_layout = QHBoxLayout()
+        file_h_layout.setDirection(QHBoxLayout.Direction.RightToLeft)
+        
         self.upload_button = QPushButton("انتخاب فایل اکسل")
+        self.download_button = QPushButton("دانلود قالب اکسل")
         self.file_path_label = QLabel("هیچ فایلی انتخاب نشده است.")
         self.file_path_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        file_h_layout.addWidget(self.upload_button); file_h_layout.addWidget(self.file_path_label, stretch=1)
-        self.download_button = QPushButton("دانلود قالب اکسل")
-        file_v_layout.addLayout(file_h_layout); file_v_layout.addWidget(self.download_button)
-        file_group_box.setLayout(file_v_layout); main_layout.addWidget(file_group_box)
+        
+        file_h_layout.addWidget(self.upload_button)
+        file_h_layout.addWidget(self.download_button)
+        file_h_layout.addWidget(self.file_path_label, 1)
+        file_v_layout.addLayout(file_h_layout)
+        self.file_group_box.setLayout(file_v_layout)
+        self.main_layout.addWidget(self.file_group_box)
 
-        middle_layout = QHBoxLayout(); middle_layout.setSpacing(15)
+        # --- Middle Section (Steps 2 & 3) ---
+        self.middle_layout = QHBoxLayout()
+        self.middle_layout.setDirection(QHBoxLayout.Direction.RightToLeft)
+        self.middle_layout.setSpacing(15)
 
         self.feature_group_box = QGroupBox("مرحله ۲ و ۳: انتخاب شاخص‌ها و اجرا")
         self.feature_group_box.setAlignment(Qt.AlignmentFlag.AlignRight)
-        feature_scroll_area = QScrollArea(); feature_scroll_area.setWidgetResizable(True)
+        feature_scroll_area = QScrollArea()
+        feature_scroll_area.setWidgetResizable(True)
         scroll_widget = QWidget()
         self.checkbox_layout = QVBoxLayout(scroll_widget)
         self.checkbox_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
-        feature_scroll_area.setWidget(scroll_widget); feature_v_layout = QVBoxLayout()
+        feature_scroll_area.setWidget(scroll_widget)
+        
+        feature_v_layout = QVBoxLayout()
         feature_v_layout.addWidget(feature_scroll_area)
-        self.run_button = QPushButton("اجرای تمام تحلیل‌ها")
-        feature_v_layout.addWidget(self.run_button); self.feature_group_box.setLayout(feature_v_layout)
-        self.feature_group_box.setEnabled(False); middle_layout.addWidget(self.feature_group_box, stretch=1)
+        
+        self.run_button = QPushButton("تحلیل خوشه‌بندی")
+        feature_v_layout.addWidget(self.run_button)
+        
+        self.feature_group_box.setLayout(feature_v_layout)
+        self.feature_group_box.setEnabled(False)
+        self.middle_layout.addWidget(self.feature_group_box, stretch=1)
 
-        comparison_group_box = QGroupBox("مرحله ۴: مقایسه نتایج (برای مشاهده جزئیات کلیک کنید)")
-        comparison_group_box.setAlignment(Qt.AlignmentFlag.AlignRight)
+        # --- Step 4: Results ---
+        self.comparison_group_box = QGroupBox("مرحله ۴: مقایسه نتایج (برای مشاهده جزئیات کلیک کنید)")
+        self.comparison_group_box.setAlignment(Qt.AlignmentFlag.AlignRight)
         comparison_layout = QVBoxLayout()
+        
         self.results_table = QTableView()
         self.results_table.setSortingEnabled(True)
         comparison_layout.addWidget(self.results_table)
-        comparison_group_box.setLayout(comparison_layout)
-        middle_layout.addWidget(comparison_group_box, stretch=3)
-        main_layout.addLayout(middle_layout, stretch=1)
+        self.comparison_group_box.setLayout(comparison_layout)
+        self.middle_layout.addWidget(self.comparison_group_box, stretch=2)
+        
+        self.main_layout.addLayout(self.middle_layout, stretch=2)
 
-        dmu_group_box = QGroupBox("جزئیات خوشه‌بندی مدل انتخاب شده")
-        dmu_group_box.setAlignment(Qt.AlignmentFlag.AlignRight)
+        # --- Detailed Results (Bottom) ---
+        self.dmu_group_box = QGroupBox("جزئیات خوشه‌بندی مدل انتخاب شده")
+        self.dmu_group_box.setAlignment(Qt.AlignmentFlag.AlignRight)
         dmu_layout = QVBoxLayout()
+        
+        # Control Buttons for Results
+        res_ctrl_layout = QHBoxLayout()
+        res_ctrl_layout.setDirection(QHBoxLayout.Direction.RightToLeft)
+        self.export_button = QPushButton("خروجی اکسل")
+        self.export_button.setObjectName("ExportButton")
+        self.fullscreen_button = QPushButton("نمایش تمام صفحه")
+        res_ctrl_layout.addWidget(self.export_button)
+        res_ctrl_layout.addWidget(self.fullscreen_button)
+        res_ctrl_layout.addStretch()
+        dmu_layout.addLayout(res_ctrl_layout)
+
         self.dmu_table = QTableView()
         self.dmu_table.setSortingEnabled(True)
         dmu_layout.addWidget(self.dmu_table)
-        dmu_group_box.setLayout(dmu_layout)
-        main_layout.addWidget(dmu_group_box, stretch=1)
+        self.dmu_group_box.setLayout(dmu_layout)
+        self.main_layout.addWidget(self.dmu_group_box, stretch=2)
 
-        self.results_table.setModel(QStandardItemModel()); self.dmu_table.setModel(QStandardItemModel())
+        # --- Models & Connections ---
+        self.results_table.setModel(QStandardItemModel())
+        self.dmu_table.setModel(QStandardItemModel())
         self.upload_button.clicked.connect(self.load_file_and_show_features)
         self.run_button.clicked.connect(self.run_analysis)
         self.download_button.clicked.connect(self.download_template)
         self.results_table.selectionModel().selectionChanged.connect(self.on_result_selection_changed)
+        self.export_button.clicked.connect(lambda: save_table_to_excel(self, self.dmu_table, "clustering_results.xlsx"))
+        self.fullscreen_button.clicked.connect(self.toggle_fullscreen)
+
+    def toggle_fullscreen(self):
+        self.is_fullscreen = not self.is_fullscreen
+        
+        # Toggle visibility of top widgets
+        self.file_group_box.setVisible(not self.is_fullscreen)
+        self.feature_group_box.setVisible(not self.is_fullscreen)
+        self.comparison_group_box.setVisible(not self.is_fullscreen)
+        
+        if self.is_fullscreen:
+            self.fullscreen_button.setText("خروج از تمام صفحه")
+            self.dmu_group_box.setTitle("جزئیات خوشه‌بندی (تمام صفحه)")
+        else:
+            self.fullscreen_button.setText("نمایش تمام صفحه")
+            self.dmu_group_box.setTitle("جزئیات خوشه‌بندی مدل انتخاب شده")
 
     def run_analysis(self):
         self.selected_features = [cb.text() for cb in self.feature_checkboxes if cb.isChecked()]
