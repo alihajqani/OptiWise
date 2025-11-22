@@ -1,3 +1,4 @@
+# ===== SECTION BEING MODIFIED: app/pages/efficiency_page.py =====
 # ===== IMPORTS & DEPENDENCIES =====
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog, QTableView,
@@ -10,7 +11,7 @@ import traceback
 
 from ..logic.dea_analysis import run_dea_analysis
 from ..logic.clustering_analysis import run_single_clustering_model
-from .utils import create_numeric_item, create_text_item, get_color_for_cluster
+from .utils import create_numeric_item, create_text_item, get_color_for_cluster, save_table_to_excel
 
 # ===== UI & APPLICATION LOGIC =====
 class EfficiencyPage(QWidget):
@@ -23,27 +24,52 @@ class EfficiencyPage(QWidget):
         self.full_dea_results_df = None
         self.selected_inputs = []
         self.selected_outputs = []
+        self.is_fullscreen = False
         self.initUI()
 
     def initUI(self):
-        # ... (The initUI layout code is correct and does not need to be changed) ...
-        # ... I am omitting it for brevity ...
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(25, 25, 25, 25); main_layout.setSpacing(15)
-        title_label = QLabel("ماژول محاسبه بهره‌وری (DEA)"); title_label.setObjectName("TitleLabel")
-        title_label.setAlignment(Qt.AlignmentFlag.AlignRight); main_layout.addWidget(title_label)
-        top_controls_layout = QHBoxLayout()
-        upload_group = QGroupBox("مرحله ۱: بارگذاری فایل داده بهره‌وری"); upload_group.setAlignment(Qt.AlignmentFlag.AlignRight)
-        upload_layout = QHBoxLayout(); self.upload_button = QPushButton("انتخاب فایل اکسل")
-        self.file_path_label = QLabel("هنوز فایلی انتخاب نشده"); upload_layout.addWidget(self.upload_button)
-        upload_layout.addWidget(self.file_path_label, 1); upload_group.setLayout(upload_layout)
-        top_controls_layout.addWidget(upload_group, 1); main_layout.addLayout(top_controls_layout)
-        middle_splitter = QSplitter(Qt.Orientation.Horizontal)
-        io_selection_group = QGroupBox("مرحله ۲: انتخاب شاخص‌های ورودی و خروجی"); io_selection_group.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.main_layout = QVBoxLayout(self)
+        self.main_layout.setContentsMargins(25, 25, 25, 25)
+        self.main_layout.setSpacing(15)
+        
+        title_label = QLabel("ماژول محاسبه بهره‌وری واحدی (مدل SBM)")
+        title_label.setObjectName("TitleLabel")
+        title_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.main_layout.addWidget(title_label)
+        
+        # --- Step 1: Upload ---
+        self.top_controls_layout = QHBoxLayout()
+        self.top_controls_layout.setDirection(QHBoxLayout.Direction.RightToLeft)
+        
+        self.upload_group = QGroupBox("مرحله ۱: بارگذاری فایل داده بهره‌وری")
+        self.upload_group.setAlignment(Qt.AlignmentFlag.AlignRight)
+        upload_layout = QHBoxLayout()
+        upload_layout.setDirection(QHBoxLayout.Direction.RightToLeft)
+        
+        self.upload_button = QPushButton("انتخاب فایل اکسل")
+        self.download_button = QPushButton("دانلود قالب اکسل")
+        self.file_path_label = QLabel("هنوز فایلی انتخاب نشده")
+        
+        upload_layout.addWidget(self.upload_button)
+        upload_layout.addWidget(self.download_button)
+        upload_layout.addWidget(self.file_path_label, 1)
+        self.upload_group.setLayout(upload_layout)
+        self.top_controls_layout.addWidget(self.upload_group, 1)
+        self.main_layout.addLayout(self.top_controls_layout)
+        
+        # --- Step 2 & 3: Splitter ---
+        self.middle_splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.middle_splitter.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        
+        # IO Selection
+        self.io_selection_group = QGroupBox("مرحله ۲: انتخاب شاخص‌های ورودی و خروجی")
+        self.io_selection_group.setAlignment(Qt.AlignmentFlag.AlignRight)
         
         io_main_layout = QHBoxLayout()
+        io_main_layout.setDirection(QHBoxLayout.Direction.RightToLeft)
         
-        inputs_group = QGroupBox("ورودی‌ها"); inputs_group.setAlignment(Qt.AlignmentFlag.AlignRight)
+        inputs_group = QGroupBox("ورودی‌ها")
+        inputs_group.setAlignment(Qt.AlignmentFlag.AlignRight)
         inputs_layout = QVBoxLayout()
         self.inputs_select_all_cb = QCheckBox("همه")
         self.inputs_list = QListWidget()
@@ -52,7 +78,8 @@ class EfficiencyPage(QWidget):
         inputs_layout.addWidget(self.inputs_list)
         inputs_group.setLayout(inputs_layout)
         
-        outputs_group = QGroupBox("خروجی‌ها"); outputs_group.setAlignment(Qt.AlignmentFlag.AlignRight)
+        outputs_group = QGroupBox("خروجی‌ها")
+        outputs_group.setAlignment(Qt.AlignmentFlag.AlignRight)
         outputs_layout = QVBoxLayout()
         self.outputs_select_all_cb = QCheckBox("همه")
         self.outputs_list = QListWidget()
@@ -63,40 +90,88 @@ class EfficiencyPage(QWidget):
         
         io_main_layout.addWidget(inputs_group, 1)
         io_main_layout.addWidget(outputs_group, 1)
+        self.io_selection_group.setLayout(io_main_layout)
+        self.middle_splitter.addWidget(self.io_selection_group)
         
-        io_selection_group.setLayout(io_main_layout)
-        middle_splitter.addWidget(io_selection_group)
+        # Run Button
+        self.run_group = QGroupBox("مرحله ۳: اجرا")
+        self.run_group.setAlignment(Qt.AlignmentFlag.AlignRight)
+        run_layout = QVBoxLayout()
+        self.run_button = QPushButton("محاسبه بهره‌وری واحدی")
+        self.run_button.setEnabled(False)
+        run_layout.addWidget(self.run_button)
+        self.run_group.setLayout(run_layout)
         
-        run_group = QGroupBox("مرحله ۳: اجرا"); run_group.setAlignment(Qt.AlignmentFlag.AlignRight)
-        run_layout = QVBoxLayout(); self.run_button = QPushButton("محاسبه بهره‌وری"); self.run_button.setEnabled(False)
-        run_layout.addWidget(self.run_button); run_group.setLayout(run_layout)
-        middle_splitter.addWidget(run_group); middle_splitter.setSizes([400, 100]); main_layout.addWidget(middle_splitter)
-        results_group = QGroupBox("نتایج تحلیل بهره‌وری (SBM ورودی-محور)"); results_group.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.middle_splitter.addWidget(self.run_group)
+        self.middle_splitter.setSizes([400, 100])
+        self.main_layout.addWidget(self.middle_splitter)
+        
+        # --- Step 4: Results ---
+        self.results_group = QGroupBox("نتایج تحلیل بهره‌وری (SBM ورودی-محور)")
+        self.results_group.setAlignment(Qt.AlignmentFlag.AlignRight)
         results_layout = QVBoxLayout()
-        self.cluster_filter_combo = QComboBox(); self.cluster_filter_combo.setEnabled(False)
-        results_layout.addWidget(self.cluster_filter_combo)
+        
+        # Controls for Results
+        res_ctrl_layout = QHBoxLayout()
+        res_ctrl_layout.setDirection(QHBoxLayout.Direction.RightToLeft)
+        self.cluster_filter_combo = QComboBox()
+        self.cluster_filter_combo.setEnabled(False)
+        self.export_button = QPushButton("خروجی اکسل")
+        self.export_button.setObjectName("ExportButton")
+        self.fullscreen_button = QPushButton("نمایش تمام صفحه")
+        
+        res_ctrl_layout.addWidget(QLabel("فیلتر خوشه:"))
+        res_ctrl_layout.addWidget(self.cluster_filter_combo)
+        res_ctrl_layout.addWidget(self.export_button)
+        res_ctrl_layout.addWidget(self.fullscreen_button)
+        res_ctrl_layout.addStretch()
+        results_layout.addLayout(res_ctrl_layout)
+
         self.results_table = QTableView()
         self.results_table.setSortingEnabled(True)
-        results_layout.addWidget(self.results_table); results_group.setLayout(results_layout)
-        main_layout.addWidget(results_group, 1)
+        results_layout.addWidget(self.results_table)
+        self.results_group.setLayout(results_layout)
+        self.main_layout.addWidget(self.results_group, 1)
         
+        # Connections
         self.upload_button.clicked.connect(self.load_dea_data)
+        self.download_button.clicked.connect(self.download_template)
         self.run_button.clicked.connect(self.run_analysis)
         self.cluster_filter_combo.currentIndexChanged.connect(self.filter_display)
         self.inputs_select_all_cb.stateChanged.connect(self.toggle_select_all_inputs)
         self.outputs_select_all_cb.stateChanged.connect(self.toggle_select_all_outputs)
         self.inputs_list.itemSelectionChanged.connect(self.update_inputs_checkbox_state)
         self.outputs_list.itemSelectionChanged.connect(self.update_outputs_checkbox_state)
+        self.export_button.clicked.connect(lambda: save_table_to_excel(self, self.results_table, "efficiency_results.xlsx"))
+        self.fullscreen_button.clicked.connect(self.toggle_fullscreen)
 
-    # --- ADD THESE FUNCTIONS BACK INTO THE CLASS ---
+    def toggle_fullscreen(self):
+        self.is_fullscreen = not self.is_fullscreen
+        self.upload_group.setVisible(not self.is_fullscreen)
+        self.middle_splitter.setVisible(not self.is_fullscreen)
+        
+        if self.is_fullscreen:
+            self.fullscreen_button.setText("خروج از تمام صفحه")
+        else:
+            self.fullscreen_button.setText("نمایش تمام صفحه")
+
+    def download_template(self):
+        template_data = {'DMU': ['واحد_۱', 'واحد_۲'], 'ورودی_۱': [10, 20], 'ورودی_۲': [5, 8], 'خروجی_۱': [100, 150]}
+        df = pd.DataFrame(template_data)
+        save_path, _ = QFileDialog.getSaveFileName(self, "ذخیره قالب اکسل", "efficiency_template.xlsx", "Excel Files (*.xlsx)")
+        if save_path:
+            try:
+                df.to_excel(save_path, index=False)
+                QMessageBox.information(self, "موفقیت", f"قالب ذخیره شد:\n{save_path}")
+            except Exception as e:
+                QMessageBox.critical(self, "خطا", f"خطا:\n{e}")
+
     def toggle_select_all_inputs(self, state):
-        # Temporarily disconnect the signal to prevent infinite loops
         self.inputs_list.itemSelectionChanged.disconnect(self.update_inputs_checkbox_state)
         if Qt.CheckState(state) == Qt.CheckState.Checked:
             self.inputs_list.selectAll()
         else:
             self.inputs_list.clearSelection()
-        # Reconnect the signal
         self.inputs_list.itemSelectionChanged.connect(self.update_inputs_checkbox_state)
 
     def toggle_select_all_outputs(self, state):
@@ -114,7 +189,6 @@ class EfficiencyPage(QWidget):
         elif len(self.inputs_list.selectedItems()) == 0:
             self.inputs_select_all_cb.setCheckState(Qt.CheckState.Unchecked)
         else:
-            # This indicates that some, but not all, items are selected
             self.inputs_select_all_cb.setCheckState(Qt.CheckState.PartiallyChecked)
         self.inputs_select_all_cb.stateChanged.connect(self.toggle_select_all_inputs)
 
@@ -127,9 +201,7 @@ class EfficiencyPage(QWidget):
         else:
             self.outputs_select_all_cb.setCheckState(Qt.CheckState.PartiallyChecked)
         self.outputs_select_all_cb.stateChanged.connect(self.toggle_select_all_outputs)
-    # --- END OF ADDED FUNCTIONS ---
 
-    # ... (The rest of the functions from the last correct version follow)
     def update_with_clustering_data(self, clustering_data):
         self.clustering_data = clustering_data
         self.cluster_filter_combo.clear()
