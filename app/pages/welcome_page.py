@@ -1,3 +1,4 @@
+# ===== SECTION BEING MODIFIED: app/pages/welcome_page.py =====
 # ===== IMPORTS & DEPENDENCIES =====
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextBrowser, QFrame
 from PyQt6.QtCore import Qt
@@ -18,14 +19,14 @@ class WelcomePage(QWidget):
         self.text_browser.setReadOnly(True)
         self.text_browser.setFrameShape(QFrame.Shape.NoFrame)
         
-        # HTML content is completely redesigned to match the user's image
+        # Updated HTML content based on client requests
         html_content = f"""
         <!DOCTYPE html>
         <html>
         <head>
             <style>
                 body {{
-                    font-family: 'Tahoma', 'Vazirmatn', sans-serif;
+                    font-family: 'Vazirmatn', 'Tahoma', sans-serif;
                     direction: rtl;
                     background-color: #FFFFFF;
                     color: #333;
@@ -33,28 +34,36 @@ class WelcomePage(QWidget):
                     text-align: center;
                 }}
                 h1 {{
-                    font-size: 36px;
+                    font-size: 42px;
                     font-weight: bold;
                     color: #003366; /* Navy Blue */
-                    margin-top: 50px;
+                    margin-top: 80px; /* Lowered content */
                     margin-bottom: 20px;
                 }}
                 h2 {{
-                    font-size: 18px;
-                    font-weight: normal;
-                    color: #555;
+                    font-size: 22px;
+                    font-weight: bold;
+                    color: #D32F2F; /* Red as requested */
                     margin-top: 0;
-                    margin-bottom: 50px;
+                    margin-bottom: 60px;
                 }}
                 p {{
-                    font-size: 16px;
-                    line-height: 2.2; /* Increased line spacing for readability */
+                    font-size: 18px;
+                    line-height: 2.4;
                     color: #444;
-                    max-width: 700px; /* Constrain width for better readability */
-                    margin: 15px auto; /* Center the paragraphs */
+                    max-width: 800px;
+                    margin: 15px auto;
                 }}
                 b {{
-                    color: #003366; /* Match the title color for emphasis */
+                    color: #003366;
+                }}
+                .developer {{
+                    position: absolute;
+                    bottom: 50px;
+                    left: 0;
+                    right: 0;
+                    font-size: 12px;
+                    color: #999999;
                 }}
                 .version {{
                     position: absolute;
@@ -80,7 +89,8 @@ class WelcomePage(QWidget):
                 برای شروع، از منوی سمت راست، ماژول تحلیلی مورد نظر خود را انتخاب کنید.
             </p>
 
-            <p class="version">نسخه {self.version}</p>
+            <div class="developer">توسعه‌دهنده: الهه معمار مسجد</div>
+            <div class="version">نسخه {self.version}</div>
         </body>
         </html>
         """
