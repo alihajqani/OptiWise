@@ -1,71 +1,63 @@
+# ===== SECTION BEING MODIFIED: app/pages/hr_efficiency_page.py =====
 # ===== IMPORTS & DEPENDENCIES =====
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog, QTableView,
     QMessageBox, QGroupBox, QListWidget, QListWidgetItem, QSplitter, QCheckBox
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QStandardItemModel, QStandardItem
 import pandas as pd
 import traceback
 from ..logic.dea_analysis import run_hr_dea_analysis
-
-
-# ===== UTILITY FUNCTIONS =====
-def create_numeric_item(value, precision=2):
-    """Creates a QStandardItem that sorts numerically."""
-    item = QStandardItem()
-    try:
-        float_val = float(value)
-        item.setData(float_val, Qt.ItemDataRole.UserRole)
-        item.setText(f"{float_val:.{precision}f}")
-    except (ValueError, TypeError):
-        item.setText(str(value))
-    
-    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-    return item
-
-def create_text_item(text):
-    """Creates a standard, non-editable text QStandardItem."""
-    item = QStandardItem(str(text))
-    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-    return item
+from .utils import create_numeric_item, create_text_item, save_table_to_excel
 
 
 # ===== UI & APPLICATION LOGIC =====
 class HrEfficiencyPage(QWidget):
+    # Signal emits the full data needed for Resource Allocation
+    analysis_completed = pyqtSignal(dict)
+
     def __init__(self):
         super().__init__()
         self.df = None
+        self.is_fullscreen = False
         self.initUI()
         
     def initUI(self):
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(25, 25, 25, 25)
-        main_layout.setSpacing(15)
+        self.main_layout = QVBoxLayout(self)
+        self.main_layout.setContentsMargins(25, 25, 25, 25)
+        self.main_layout.setSpacing(15)
 
         title_label = QLabel("ماژول محاسبه بهره‌وری نیروی انسانی (مدل BCC)")
         title_label.setObjectName("TitleLabel")
         title_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-        main_layout.addWidget(title_label)
+        self.main_layout.addWidget(title_label)
 
-        upload_group = QGroupBox("مرحله ۱: بارگذاری فایل داده پرسنل")
-        upload_group.setAlignment(Qt.AlignmentFlag.AlignRight)
+        # --- Step 1 ---
+        self.upload_group = QGroupBox("مرحله ۱: بارگذاری فایل داده پرسنل")
+        self.upload_group.setAlignment(Qt.AlignmentFlag.AlignRight)
         upload_layout = QHBoxLayout()
-        self.upload_button = QPushButton("انتخاب فایل اکسل")
-        self.file_path_label = QLabel("هنوز فایلی انتخاب نشده")
-        upload_layout.addWidget(self.upload_button)
-        upload_layout.addWidget(self.file_path_label, 1)
-        upload_group.setLayout(upload_layout)
-        main_layout.addWidget(upload_group)
-
-        middle_splitter = QSplitter(Qt.Orientation.Horizontal)
+        upload_layout.setDirection(QHBoxLayout.Direction.RightToLeft)
         
-        io_selection_group = QGroupBox("مرحله ۲: انتخاب شاخص‌های ورودی و خروجی")
-        io_selection_group.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.upload_button = QPushButton("انتخاب فایل اکسل")
+        self.download_button = QPushButton("دانلود قالب اکسل")
+        self.file_path_label = QLabel("هنوز فایلی انتخاب نشده")
+        
+        upload_layout.addWidget(self.upload_button)
+        upload_layout.addWidget(self.download_button)
+        upload_layout.addWidget(self.file_path_label, 1)
+        self.upload_group.setLayout(upload_layout)
+        self.main_layout.addWidget(self.upload_group)
+
+        # --- Step 2 & 3 ---
+        self.middle_splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.middle_splitter.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        
+        self.io_selection_group = QGroupBox("مرحله ۲: انتخاب شاخص‌های ورودی و خروجی")
+        self.io_selection_group.setAlignment(Qt.AlignmentFlag.AlignRight)
         
         io_main_layout = QHBoxLayout()
+        io_main_layout.setDirection(QHBoxLayout.Direction.RightToLeft)
         
         inputs_group = QGroupBox("ورودی‌ها")
         inputs_group.setAlignment(Qt.AlignmentFlag.AlignRight)
@@ -90,35 +82,70 @@ class HrEfficiencyPage(QWidget):
         io_main_layout.addWidget(inputs_group, 1)
         io_main_layout.addWidget(outputs_group, 1)
         
-        io_selection_group.setLayout(io_main_layout)
-        middle_splitter.addWidget(io_selection_group)
+        self.io_selection_group.setLayout(io_main_layout)
+        self.middle_splitter.addWidget(self.io_selection_group)
         
-        run_group = QGroupBox("مرحله ۳: اجرا")
-        run_group.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.run_group = QGroupBox("مرحله ۳: اجرا")
+        self.run_group.setAlignment(Qt.AlignmentFlag.AlignRight)
         run_layout = QVBoxLayout()
         self.run_button = QPushButton("محاسبه بهره‌وری پرسنل")
         self.run_button.setEnabled(False)
         run_layout.addWidget(self.run_button)
-        run_group.setLayout(run_layout)
-        middle_splitter.addWidget(run_group)
-        middle_splitter.setSizes([400, 100])
-        main_layout.addWidget(middle_splitter)
+        self.run_group.setLayout(run_layout)
+        
+        self.middle_splitter.addWidget(self.run_group)
+        self.middle_splitter.setSizes([400, 100])
+        self.main_layout.addWidget(self.middle_splitter)
 
-        results_group = QGroupBox("نتایج بهره‌وری نیروی انسانی")
-        results_group.setAlignment(Qt.AlignmentFlag.AlignRight)
+        # --- Step 4 ---
+        self.results_group = QGroupBox("نتایج بهره‌وری نیروی انسانی")
+        self.results_group.setAlignment(Qt.AlignmentFlag.AlignRight)
         results_layout = QVBoxLayout()
+        
+        # Controls
+        res_ctrl_layout = QHBoxLayout()
+        res_ctrl_layout.setDirection(QHBoxLayout.Direction.RightToLeft)
+        self.export_button = QPushButton("خروجی اکسل")
+        self.export_button.setObjectName("ExportButton")
+        self.fullscreen_button = QPushButton("نمایش تمام صفحه")
+        res_ctrl_layout.addWidget(self.export_button)
+        res_ctrl_layout.addWidget(self.fullscreen_button)
+        res_ctrl_layout.addStretch()
+        results_layout.addLayout(res_ctrl_layout)
+        
         self.results_table = QTableView()
         self.results_table.setSortingEnabled(True)
         results_layout.addWidget(self.results_table)
-        results_group.setLayout(results_layout)
-        main_layout.addWidget(results_group, 1)
+        self.results_group.setLayout(results_layout)
+        self.main_layout.addWidget(self.results_group, 1)
         
+        # Connections
         self.upload_button.clicked.connect(self.load_data)
+        self.download_button.clicked.connect(self.download_template)
         self.run_button.clicked.connect(self.run_analysis)
         self.inputs_select_all_cb.stateChanged.connect(self.toggle_select_all_inputs)
         self.outputs_select_all_cb.stateChanged.connect(self.toggle_select_all_outputs)
         self.inputs_list.itemSelectionChanged.connect(self.update_inputs_checkbox_state)
         self.outputs_list.itemSelectionChanged.connect(self.update_outputs_checkbox_state)
+        self.export_button.clicked.connect(lambda: save_table_to_excel(self, self.results_table, "hr_efficiency_results.xlsx"))
+        self.fullscreen_button.clicked.connect(self.toggle_fullscreen)
+
+    def toggle_fullscreen(self):
+        self.is_fullscreen = not self.is_fullscreen
+        self.upload_group.setVisible(not self.is_fullscreen)
+        self.middle_splitter.setVisible(not self.is_fullscreen)
+        if self.is_fullscreen:
+            self.fullscreen_button.setText("خروج از تمام صفحه")
+        else:
+            self.fullscreen_button.setText("نمایش تمام صفحه")
+
+    def download_template(self):
+        template_data = {'Name': ['Ali', 'Sara'], 'Exp': [5, 10], 'Score': [90, 95]}
+        df = pd.DataFrame(template_data)
+        save_path, _ = QFileDialog.getSaveFileName(self, "ذخیره قالب اکسل", "hr_template.xlsx", "Excel Files (*.xlsx)")
+        if save_path:
+            df.to_excel(save_path, index=False)
+            QMessageBox.information(self, "موفقیت", "قالب ذخیره شد.")
 
     def toggle_select_all_inputs(self, state):
         self.inputs_list.itemSelectionChanged.disconnect(self.update_inputs_checkbox_state)
@@ -195,8 +222,15 @@ class HrEfficiencyPage(QWidget):
             dmu_column = self.df.columns[0]
             results_list = run_hr_dea_analysis(self.df, dmu_column, selected_inputs, selected_outputs)
             
-            # Pass the original dataframe along with the results
+            results_df = pd.DataFrame(results_list)
             self.display_results(results_list, self.df)
+            
+            # Emit signal with BOTH original data and results for the Resource Allocation page
+            self.analysis_completed.emit({
+                'original_df': self.df,
+                'results_df': results_df,
+                'results_list': results_list
+            })
             
         except Exception as e:
             traceback.print_exc()
@@ -207,26 +241,18 @@ class HrEfficiencyPage(QWidget):
     def display_results(self, results_list, original_df):
         results_df = pd.DataFrame(results_list)
         
-        # Merge results with original dataframe to get extra columns
-        # The first column of original_df is the key (dmu name)
         dmu_col_name = original_df.columns[0]
         merged_df = pd.merge(original_df, results_df, left_on=dmu_col_name, right_on='dmu', how='left')
-        
-        # Initial sort before displaying
         merged_df = merged_df.sort_values(by='score', ascending=False)
 
         model = QStandardItemModel()
         
-        # --- Dynamically find optional columns ---
-        # Define possible names for optional columns
         code_col_options = ['کد پرسنلی', 'کدپرسنلی', 'personnel_code', 'code']
         name_col_options = ['نام و نام خانوادگی', 'نام', 'name', 'fullname']
         
-        # Find the actual column names present in the dataframe
         code_col = next((col for col in code_col_options if col in merged_df.columns), None)
         name_col = next((col for col in name_col_options if col in merged_df.columns), None)
         
-        # --- Build headers dynamically ---
         headers = []
         if code_col: headers.append("کد پرسنلی")
         if name_col: headers.append("نام و نام خانوادگی")
