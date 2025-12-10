@@ -27,7 +27,7 @@ exe = EXE(
     a.binaries,
     a.zipfiles,
     a.datas,
-    name='OptiWise_v0.12.2',
+    name='OptiWise_v0.13.0',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
