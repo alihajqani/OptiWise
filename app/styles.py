@@ -1,3 +1,4 @@
+# ===== SECTION BEING MODIFIED: styles.py =====
 # ===== IMPORTS & DEPENDENCIES =====
 def load_stylesheet():
     """Return the QSS stylesheet for the application with updated visual requirements."""
@@ -41,12 +42,15 @@ def load_stylesheet():
             color: #FFFFFF;
             background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #2B508A, stop:1 #1A3E6E);
             border: 1px solid #0d2445;
-            border-radius: 6px; 
-            margin: 6px 10px;
-            padding: 12px 20px;
+            border-radius: 8px; 
+            margin: 6px 0px; /* Reduced side margin inside layout, relying on padding */
+            
+            /* --- MODIFIED: Adjusted padding to ensure text fits --- */
+            padding: 10px 15px; 
+            
             font-size: 15px;
             font-weight: bold;
-            text-align: right;
+            text-align: right; /* Ensure text aligns right next to icon */
         }
 
         #NavBar QToolButton:hover {

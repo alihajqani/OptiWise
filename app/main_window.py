@@ -24,7 +24,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.version = version
         self.setWindowTitle(f"OptiWise - Decision Support System v{self.version}")
-        self.setGeometry(100, 100, 1200, 850)
+        self.setGeometry(100, 100, 1280, 850) # Increased default width slightly
         self.setStyleSheet(load_stylesheet())
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft) # Force RTL
         
@@ -41,9 +41,10 @@ class MainWindow(QMainWindow):
 
         self.nav_bar = QWidget()
         self.nav_bar.setObjectName("NavBar")
-        self.nav_bar.setFixedWidth(240) # Slightly wider for bold text
+        # --- MODIFIED: Increased width from 240 to 320 to prevent text truncation ---
+        self.nav_bar.setFixedWidth(320) 
         self.nav_layout = QVBoxLayout(self.nav_bar)
-        self.nav_layout.setContentsMargins(5, 20, 5, 20)
+        self.nav_layout.setContentsMargins(10, 20, 10, 20) # Slightly increased side margins
         self.nav_layout.setSpacing(8)
         main_layout.addWidget(self.nav_bar)
         
@@ -55,10 +56,6 @@ class MainWindow(QMainWindow):
 
         self.setup_pages()
         
-        # Add spacer to push buttons to fill space or distribute them
-        # To distribute 8 items across full height, we use spacers or stretch
-        # Here we add a final spacer to ensure they don't bunch up if height is large, 
-        # but we set button policy to expanding in add_page.
         self.nav_layout.addStretch() 
         
         self.button_group.idClicked.connect(self.stacked_widget.setCurrentIndex)
@@ -91,14 +88,9 @@ class MainWindow(QMainWindow):
         self.forecast_page = ForecastPage()
         self.help_page = HelpPage()
         
-        # Connections
-        # Clustering -> Efficiency (Unit)
         self.clustering_page.analysis_completed.connect(self.efficiency_page.update_with_clustering_data)
-        
-        # CHANGED: Resource Allocation now depends on HR Efficiency as per client request
         self.hr_efficiency_page.analysis_completed.connect(self.resource_allocation_page.update_data)
 
-        # Adding Pages with Updated Names
         self.add_page(self.welcome_page, "صفحه اصلی", "assets/icons/home.png")
         self.add_page(self.clustering_page, "تحلیل خوشه‌بندی", "assets/icons/cluster.png")
         self.add_page(self.efficiency_page, "محاسبه بهره‌وری واحدی", "assets/icons/efficiency.png")
@@ -126,7 +118,6 @@ class MainWindow(QMainWindow):
             white_file_name = f"W-{file_name}" 
             white_icon_path = os.path.join(dir_name, white_file_name)
             
-            # Load icon (Logic remains the same)
             if os.path.exists(white_icon_path):
                 icon.addFile(white_icon_path, state=QIcon.State.Off)
                 icon.addFile(icon_path, state=QIcon.State.On)
@@ -140,14 +131,13 @@ class MainWindow(QMainWindow):
             icon.addFile(icon_path, state=QIcon.State.On)
 
         button.setIcon(icon)
-        button.setIconSize(QSize(36, 36)) # Slightly larger icons
+        button.setIconSize(QSize(32, 32)) # Slightly reduced icon size to give more room to text
         button.setCheckable(True)
         button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         button.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         
-        # Make buttons expand to fill vertical space evenly
         button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        button.setMinimumHeight(60) # Minimum height to look like a key/tile
+        button.setMinimumHeight(65) # Increased height for better look
 
         self.nav_layout.addWidget(button)
-        self.button_group.addButton(button, page_index)        
+        self.button_group.addButton(button, page_index)
