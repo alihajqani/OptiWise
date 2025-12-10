@@ -8,7 +8,7 @@ import base64
 BASE_DATE = datetime.datetime(2001, 1, 1)
 
 # This is the only value you need to keep.
-ENCODED_OFFSET_DAYS = 'OTA5NA==' 
+ENCODED_OFFSET_DAYS = 'OTEyNA==' 
 
 # --- NTP SERVER for reliable time checking ---
 NTP_SERVER = 'ir.pool.ntp.org'
