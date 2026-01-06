@@ -30,14 +30,19 @@ class EfficiencyPage(BasePage):
         self.initUI()
 
     def initUI(self):
-        # --- MODIFIED: The main layout is now self.content_layout provided by BasePage ---
-        # No longer need: self.main_layout = QVBoxLayout(self)
         self.content_layout.setSpacing(15)
+        # Force horizontal centering of the title label using stretches on both sides
+        title_layout = QHBoxLayout()
         
         title_label = QLabel("ماژول محاسبه بهره‌وری واحدی (مدل SBM)")
         title_label.setObjectName("TitleLabel")
-        title_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self.content_layout.addWidget(title_label)
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        title_layout.addStretch(1)  # Add stretch on the left side
+        title_layout.addWidget(title_label)
+        title_layout.addStretch(1)  # Add stretch on the right side
+        
+        self.content_layout.addLayout(title_layout)
         
         # --- Step 1: Upload ---
         self.top_controls_layout = QHBoxLayout()

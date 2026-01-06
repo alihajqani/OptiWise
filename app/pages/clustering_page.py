@@ -10,7 +10,6 @@ import pandas as pd
 import traceback
 
 from ..logic.clustering_analysis import get_all_clustering_results, run_single_clustering_model
-# --- MODIFIED: Import BasePage and other necessary utilities ---
 from .utils import create_numeric_item, create_text_item, save_table_to_excel, BasePage
 
 # ===== COLOR PALETTES =====
@@ -38,7 +37,6 @@ def get_color_for_item(item_name, color_map, color_list=None):
     return None
 
 # ===== UI & APPLICATION LOGIC =====
-# --- MODIFIED: Inherit from BasePage instead of QWidget ---
 class ClusteringPage(BasePage):
     analysis_completed = pyqtSignal(dict)
 
@@ -51,15 +49,20 @@ class ClusteringPage(BasePage):
         self.initUI()
 
     def initUI(self):
-        # --- MODIFIED: The main layout is now self.content_layout provided by BasePage ---
-        # No longer need: self.main_layout = QVBoxLayout(self)
         self.content_layout.setSpacing(15)
 
         # --- Title ---
+        # Force horizontal centering of the title label using stretches on both sides
+        title_layout = QHBoxLayout()
         title_label = QLabel("ماژول تحلیل خوشه‌بندی (الگوریتم‌های K-Means, K-Medoids, Ward)")
         title_label.setObjectName("TitleLabel")
-        title_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self.content_layout.addWidget(title_label)
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        title_layout.addStretch(1)  # Add stretch on the left side
+        title_layout.addWidget(title_label)
+        title_layout.addStretch(1)  # Add stretch on the right side
+        
+        self.content_layout.addLayout(title_layout)
 
         # --- Step 1: File Upload ---
         self.file_group_box = QGroupBox("مرحله ۱: انتخاب فایل داده")

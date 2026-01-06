@@ -26,13 +26,19 @@ class HrEfficiencyPage(BasePage):
         self.initUI()
         
     def initUI(self):
-        # --- MODIFIED: Use self.content_layout provided by BasePage ---
         self.content_layout.setSpacing(15)
+        # Force horizontal centering of the title label using stretches on both sides
+        title_layout = QHBoxLayout()
 
         title_label = QLabel("ماژول محاسبه بهره‌وری نیروی انسانی (مدل BCC)")
         title_label.setObjectName("TitleLabel")
-        title_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self.content_layout.addWidget(title_label)
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        title_layout.addStretch(1)  # Add stretch on the left side
+        title_layout.addWidget(title_label)
+        title_layout.addStretch(1)  # Add stretch on the right side
+        
+        self.content_layout.addLayout(title_layout)
 
         # --- Step 1 ---
         self.upload_group = QGroupBox("مرحله ۱: بارگذاری فایل داده پرسنل")
