@@ -7,24 +7,25 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QStandardItemModel
 import pandas as pd
-from .utils import create_numeric_item, create_text_item, save_table_to_excel
+# --- MODIFIED: Import BasePage ---
+from .utils import create_numeric_item, create_text_item, save_table_to_excel, BasePage
 
 # ===== UI & APPLICATION LOGIC =====
-class ResourceAllocationPage(QWidget):
+# --- MODIFIED: Inherit from BasePage ---
+class ResourceAllocationPage(BasePage):
     def __init__(self):
         super().__init__()
         self.full_data = None
         self.initUI()
 
     def initUI(self):
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(25, 25, 25, 25)
-        main_layout.setSpacing(15)
+        # --- MODIFIED: Use self.content_layout provided by BasePage ---
+        self.content_layout.setSpacing(15)
 
         title_label = QLabel("تخصیص بهینه منابع (بودجه و تجهیزات)")
         title_label.setObjectName("TitleLabel")
         title_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-        main_layout.addWidget(title_label)
+        self.content_layout.addWidget(title_label)
         
         # --- Tab widget for different resource types ---
         self.tab_widget = QTabWidget()
@@ -43,7 +44,7 @@ class ResourceAllocationPage(QWidget):
         self.tab_widget.addTab(self.equipment_tab, "تجهیزات")
         self.tab_widget.addTab(self.hr_tab, "نیروی انسانی")
         
-        main_layout.addWidget(self.tab_widget)
+        self.content_layout.addWidget(self.tab_widget)
         
         self._show_initial_message()
 

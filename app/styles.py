@@ -1,5 +1,7 @@
-# ===== SECTION BEING MODIFIED: styles.py =====
+# ===== SECTION BEING MODIFIED: app/styles.py =====
 # ===== IMPORTS & DEPENDENCIES =====
+# (No imports needed for this file, just string return)
+
 def load_stylesheet():
     """Return the QSS stylesheet for the application with updated visual requirements."""
     return """
@@ -13,6 +15,35 @@ def load_stylesheet():
         
         /* --- Main Window --- */
         QMainWindow, QDialog { background-color: #FDFBF5; }
+
+        /* --- Dashboard Header & Footer --- */
+        QWidget#HeaderContainer {
+            background-color: #1A3E6E; /* Navy Blue */
+        }
+
+        QLabel#HeaderTitle {
+            color: #FFFFFF;
+            font-size: 36px;
+            font-weight: bold;
+            background-color: transparent;
+        }
+        
+        QLabel#HeaderSubtitle {
+            color: #E6AD30; /* Gold Accent */
+            font-size: 18px;
+            background-color: transparent;
+        }
+
+        QWidget#FooterContainer {
+            background-color: #FFFFFF;
+            border-top: 1px solid #E0E0E0;
+        }
+        
+        QLabel#FooterLabel {
+            font-size: 12px;
+            color: #999999;
+            background-color: transparent;
+        }
 
         /* --- Group Boxes --- */
         QGroupBox {
@@ -31,50 +62,53 @@ def load_stylesheet():
             right: 20px;
         }
 
-        /* --- Modern Navigation Bar Styles (Sidebar) --- */
-        #NavBar {
-            background-color: #1A3E6E;
-            border-left: 1px solid #122C4D;
+        /* --- Page Top Bar & Back Button --- */
+        QWidget#PageTopBar {
+            background-color: #1A3E6E; /* Navy Blue Background */
+            border-bottom: 2px solid #E6AD30; /* Gold Border */
         }
         
-        /* Sidebar Buttons - 3D Key Look */
-        #NavBar QToolButton {
-            color: #FFFFFF;
-            background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #2B508A, stop:1 #1A3E6E);
-            border: 1px solid #0d2445;
-            border-radius: 8px; 
-            margin: 6px 0px; /* Reduced side margin inside layout, relying on padding */
-            
-            /* --- MODIFIED: Adjusted padding to ensure text fits --- */
-            padding: 10px 15px; 
-            
-            font-size: 15px;
-            font-weight: bold;
-            text-align: right; /* Ensure text aligns right next to icon */
-        }
-
-        #NavBar QToolButton:hover {
-            background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #3E64A3, stop:1 #2B508A);
-            border: 1px solid #E6AD30;
-        }
-
-        #NavBar QToolButton:checked {
-            background-color: #E6AD30; /* Active State Gold */
-            color: #1A3E6E;
+        QPushButton#BackButton {
+            background-color: transparent;
+            color: #FFFFFF; /* White Text */
             border: 1px solid #FFFFFF;
+            font-weight: bold;
+            padding: 8px 16px;
+            border-radius: 6px;
+        }
+        QPushButton#BackButton:hover {
+            background-color: #E6AD30; /* Gold Background on Hover */
+            color: #1A3E6E; /* Navy Text on Hover */
+            border-color: #FFFFFF;
+        }
+
+        /* --- Dashboard Card Styles --- */
+        QFrame#ActionCard {
+            background-color: #FFFFFF;
+            border: 1px solid #E0E0E0;
+            border-radius: 12px;
         }
         
-        #NavBar QToolButton:disabled {
-            color: #A0A0A0;
-            background-color: #122C4D;
-            border: 1px solid #000;
+        QFrame#ActionCard:hover {
+            border: 2px solid #1A3E6E;
+            background-color: #F8FAFC;
+        }
+        
+        QFrame#ActionCard:disabled {
+            background-color: #F5F5F5;
+        }
+        
+        QLabel#CardTitle {
+            font-size: 16px;
+            font-weight: bold;
+            color: #1A3E6E;
+            background-color: transparent;
         }
 
-        /* Remove Dotted Focus Border */
-        QToolButton:focus, QPushButton:focus, QTableView:focus {
-            outline: none;
+        QLabel#CardTitle:disabled {
+            color: #999999;
         }
-
+        
         /* --- General Buttons --- */
         QPushButton {
             background-color: #1A3E6E; 
@@ -91,41 +125,9 @@ def load_stylesheet():
         }
         QPushButton:pressed { 
             background-color: #122C4D; 
-            margin-top: 1px; /* Click effect */
-        }
-        
-        /* --- Specific Buttons (Optional) --- */
-        QPushButton#ExportButton {
-            background-color: #27ae60;
-        }
-        QPushButton#ExportButton:hover {
-            background-color: #2ecc71;
+            margin-top: 1px;
         }
 
-        /* --- CheckBox Styling for RTL --- */
-        QCheckBox {
-            spacing: 8px;
-            font-size: 14px;
-        }
-        QCheckBox::indicator {
-            width: 18px;
-            height: 18px;
-        }
-
-        /* --- Labels --- */
-        QLabel#TitleLabel {
-            font-size: 24px; 
-            font-weight: bold; 
-            color: #1A3E6E; 
-            padding: 10px 0 20px 0;
-            border-bottom: 2px solid #E6AD30;
-            margin-bottom: 15px;
-        }
-        QLabel { 
-            font-size: 14px; 
-            color: #333; 
-        }
-        
         /* --- Table Views --- */
         QTableView {
             border: 1px solid #D0D0D0; 
@@ -144,22 +146,6 @@ def load_stylesheet():
             font-size: 13px;
             color: #1A3E6E;
         }
-        
-        /* --- Sorting Indicator Style --- */
-        QHeaderView::down-arrow {
-            image: url(./assets/icons/down_arrow.png);
-            width: 16px; height: 16px;
-        }
-        QHeaderView::up-arrow {
-            image: url(./assets/icons/up_arrow.png);
-            width: 16px; height: 16px;
-        }
-
-        /* --- Global Item Alignment for Tables --- */
-        QTableView::item {
-            padding: 5px;
-            text-align: center;
-        }
 
         /* --- ScrollBar --- */
         QScrollBar:vertical {
@@ -167,8 +153,5 @@ def load_stylesheet():
         }
         QScrollBar::handle:vertical {
             background: #B0B8C0; min-height: 20px; border-radius: 6px;
-        }
-        QScrollBar::handle:vertical:hover {
-            background: #1A3E6E;
         }
     """

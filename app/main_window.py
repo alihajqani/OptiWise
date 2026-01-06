@@ -1,8 +1,7 @@
-# ===== SECTION BEING MODIFIED: main_window.py =====
+# ===== SECTION BEING MODIFIED: app/main_window.py =====
 # ===== IMPORTS & DEPENDENCIES =====
 import os
-from PyQt6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QStackedWidget, 
-                             QVBoxLayout, QToolButton, QButtonGroup, QSizePolicy, QSpacerItem)
+from PyQt6.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QStackedWidget, QVBoxLayout)
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QIcon
 
@@ -16,6 +15,8 @@ from .pages.hr_efficiency_page import HrEfficiencyPage
 from .pages.resource_allocation_page import ResourceAllocationPage
 from .pages.forecast_page import ForecastPage
 from .pages.help_page import HelpPage
+# --- NEW: Import BasePage to check instance type ---
+from .pages.utils import BasePage
 
 
 # ===== UI & APPLICATION LOGIC =====
@@ -24,9 +25,9 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.version = version
         self.setWindowTitle(f"OptiWise - Decision Support System v{self.version}")
-        self.setGeometry(100, 100, 1280, 850) # Increased default width slightly
+        self.setGeometry(100, 100, 1280, 850)
         self.setStyleSheet(load_stylesheet())
-        self.setLayoutDirection(Qt.LayoutDirection.RightToLeft) # Force RTL
+        self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         
         try:
             self.setWindowIcon(QIcon("assets/app_icon.png"))
@@ -35,32 +36,23 @@ class MainWindow(QMainWindow):
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        main_layout = QHBoxLayout(central_widget)
+        main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
-
-        self.nav_bar = QWidget()
-        self.nav_bar.setObjectName("NavBar")
-        # --- MODIFIED: Increased width from 240 to 320 to prevent text truncation ---
-        self.nav_bar.setFixedWidth(320) 
-        self.nav_layout = QVBoxLayout(self.nav_bar)
-        self.nav_layout.setContentsMargins(10, 20, 10, 20) # Slightly increased side margins
-        self.nav_layout.setSpacing(8)
-        main_layout.addWidget(self.nav_bar)
-        
-        self.button_group = QButtonGroup(self)
-        self.button_group.setExclusive(True)
 
         self.stacked_widget = QStackedWidget()
         main_layout.addWidget(self.stacked_widget)
 
+        self.pages_info = []
         self.setup_pages()
         
-        self.nav_layout.addStretch() 
-        
-        self.button_group.idClicked.connect(self.stacked_widget.setCurrentIndex)
+        if self.welcome_page:
+            self.welcome_page.page_selected.connect(self.stacked_widget.setCurrentIndex)
         
         self.check_license()
+
+    def go_to_home(self):
+        """A simple slot to switch to the welcome page."""
+        self.stacked_widget.setCurrentIndex(0)
 
     def check_license(self):
         validator = LicenseValidator()
@@ -71,73 +63,43 @@ class MainWindow(QMainWindow):
     def _enter_expired_mode(self, message: str):
         self.welcome_page.show_expiration_message(message)
         self.stacked_widget.setCurrentIndex(0)
-        self.button_group.button(0).setChecked(True)
-        buttons = self.button_group.buttons()
-        for i, button in enumerate(buttons):
-            if i > 0:
-                button.setEnabled(False)
-                button.setToolTip("این نسخه منقضی شده است")
                 
     def setup_pages(self):
-        self.welcome_page = WelcomePage(self.version)
-        self.clustering_page = ClusteringPage()
-        self.efficiency_page = EfficiencyPage()
-        self.ranking_page = RankingPage()
-        self.hr_efficiency_page = HrEfficiencyPage()
-        self.resource_allocation_page = ResourceAllocationPage()
-        self.forecast_page = ForecastPage()
-        self.help_page = HelpPage()
+        page_definitions = [
+            {"name": "صفحه اصلی", "icon": "assets/icons/home.png", "widget_class": None},
+            {"name": "تحلیل خوشه‌بندی", "icon": "assets/icons/cluster.png", "widget_class": ClusteringPage},
+            {"name": "محاسبه بهره‌وری واحدی", "icon": "assets/icons/efficiency.png", "widget_class": EfficiencyPage},
+            {"name": "تخصیص بهینه منابع", "icon": "assets/icons/resource.png", "widget_class": ResourceAllocationPage},
+            {"name": "رتبه‌بندی", "icon": "assets/icons/ranking.png", "widget_class": RankingPage},
+            {"name": "بهره‌وری نیروی انسانی", "icon": "assets/icons/users.png", "widget_class": HrEfficiencyPage},
+            {"name": "پیش‌بینی نیروی انسانی", "icon": "assets/icons/forecast.png", "widget_class": ForecastPage},
+            {"name": "راهنما", "icon": "assets/icons/help.png", "widget_class": HelpPage}
+        ]
+
+        self.welcome_page = WelcomePage(self.version, page_definitions)
+        self.stacked_widget.addWidget(self.welcome_page)
+
+        clustering_page = None
+        hr_efficiency_page = None
         
-        self.clustering_page.analysis_completed.connect(self.efficiency_page.update_with_clustering_data)
-        self.hr_efficiency_page.analysis_completed.connect(self.resource_allocation_page.update_data)
-
-        self.add_page(self.welcome_page, "صفحه اصلی", "assets/icons/home.png")
-        self.add_page(self.clustering_page, "تحلیل خوشه‌بندی", "assets/icons/cluster.png")
-        self.add_page(self.efficiency_page, "محاسبه بهره‌وری واحدی", "assets/icons/efficiency.png")
-        self.add_page(self.resource_allocation_page, "تخصیص بهینه منابع", "assets/icons/resource.png")
-        self.add_page(self.ranking_page, "رتبه‌بندی", "assets/icons/ranking.png")
-        self.add_page(self.hr_efficiency_page, "بهره‌وری نیروی انسانی", "assets/icons/users.png")
-        self.add_page(self.forecast_page, "پیش‌بینی نیروی انسانی", "assets/icons/forecast.png")
-        self.add_page(self.help_page, "راهنما", "assets/icons/help.png")
-
-        if self.button_group.buttons():
-            self.button_group.button(0).setChecked(True)
-            self.stacked_widget.setCurrentIndex(0)
-
-    def add_page(self, widget: QWidget, name: str, icon_path: str):
-        page_index = self.stacked_widget.count()
-        self.stacked_widget.addWidget(widget)
-
-        button = QToolButton()
-        button.setText(name)
-        
-        icon = QIcon()
-        
-        try:
-            dir_name, file_name = os.path.split(icon_path)
-            white_file_name = f"W-{file_name}" 
-            white_icon_path = os.path.join(dir_name, white_file_name)
+        for index, page_def in enumerate(page_definitions):
+            if index == 0: continue
             
-            if os.path.exists(white_icon_path):
-                icon.addFile(white_icon_path, state=QIcon.State.Off)
-                icon.addFile(icon_path, state=QIcon.State.On)
-            else:
-                icon.addFile(icon_path, state=QIcon.State.Off)
-                icon.addFile(icon_path, state=QIcon.State.On)
+            widget = page_def["widget_class"]()
+            self.stacked_widget.addWidget(widget)
+            
+            # --- NEW: Connect the back_to_home signal ---
+            if isinstance(widget, BasePage):
+                widget.back_to_home_requested.connect(self.go_to_home)
 
-        except Exception as e:
-            print(f"Error creating multi-state icon: {e}")
-            icon.addFile(icon_path, state=QIcon.State.Off)
-            icon.addFile(icon_path, state=QIcon.State.On)
+            # Signal connections for analysis logic
+            if isinstance(widget, ClusteringPage):
+                clustering_page = widget
+            if isinstance(widget, HrEfficiencyPage):
+                hr_efficiency_page = widget
+            if isinstance(widget, EfficiencyPage) and clustering_page:
+                clustering_page.analysis_completed.connect(widget.update_with_clustering_data)
+            if isinstance(widget, ResourceAllocationPage) and hr_efficiency_page:
+                hr_efficiency_page.analysis_completed.connect(widget.update_data)
 
-        button.setIcon(icon)
-        button.setIconSize(QSize(32, 32)) # Slightly reduced icon size to give more room to text
-        button.setCheckable(True)
-        button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-        button.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        
-        button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        button.setMinimumHeight(65) # Increased height for better look
-
-        self.nav_layout.addWidget(button)
-        self.button_group.addButton(button, page_index)
+        self.stacked_widget.setCurrentIndex(0)

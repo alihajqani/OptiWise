@@ -1,9 +1,11 @@
 # ===== SECTION BEING MODIFIED: app/pages/utils.py =====
 # ===== IMPORTS & DEPENDENCIES =====
 from PyQt6.QtGui import QStandardItem, QColor
-from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QFileDialog, QMessageBox
 import pandas as pd
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton
+from PyQt6.QtCore import pyqtSignal, Qt, QSize
+from PyQt6.QtGui import QIcon
 
 CLUSTER_COLORS = [
     "#E6F7FF", "#F6FFED", "#FFFBE6", "#FFF1F0", "#F9F0FF",
@@ -78,3 +80,48 @@ def save_table_to_excel(parent, table_view, default_name="results.xlsx"):
         QMessageBox.information(parent, "موفقیت", f"فایل با موفقیت ذخیره شد:\n{file_path}")
     except Exception as e:
         QMessageBox.critical(parent, "خطا", f"خطا در ذخیره فایل اکسل:\n{e}")
+
+# ===== BASE PAGE CLASS =====
+class BasePage(QWidget):
+    """
+    A base class for all pages (except WelcomePage) to provide a consistent
+    "Back to Home" button and a content layout.
+    """
+    back_to_home_requested = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        # 1. Top bar for the back button
+        top_bar_widget = QWidget()
+        top_bar_widget.setFixedHeight(60)
+        # --- MODIFICATION: Set object name for styling ---
+        top_bar_widget.setObjectName("PageTopBar") 
+        
+        top_bar_layout = QHBoxLayout(top_bar_widget)
+        top_bar_layout.setContentsMargins(20, 0, 20, 0)
+
+        back_button = QPushButton("بازگشت به صفحه اصلی")
+        back_button.setObjectName("BackButton")
+        back_button.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        # --- MODIFICATION: Use white icon for dark background ---
+        back_button.setIcon(QIcon("assets/icons/W-home.png"))
+        back_button.setIconSize(QSize(24, 24))
+        back_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        back_button.clicked.connect(self.back_to_home_requested.emit)
+
+        top_bar_layout.addWidget(back_button)
+        top_bar_layout.addStretch()
+
+        main_layout.addWidget(top_bar_widget)
+
+        # 2. Content area for child pages to populate
+        content_container = QWidget()
+        self.content_layout = QVBoxLayout(content_container)
+        self.content_layout.setContentsMargins(25, 25, 25, 25)
+
+        main_layout.addWidget(content_container)

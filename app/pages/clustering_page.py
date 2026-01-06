@@ -10,7 +10,8 @@ import pandas as pd
 import traceback
 
 from ..logic.clustering_analysis import get_all_clustering_results, run_single_clustering_model
-from .utils import create_numeric_item, create_text_item, save_table_to_excel
+# --- MODIFIED: Import BasePage and other necessary utilities ---
+from .utils import create_numeric_item, create_text_item, save_table_to_excel, BasePage
 
 # ===== COLOR PALETTES =====
 ALGORITHM_COLORS = {
@@ -37,7 +38,8 @@ def get_color_for_item(item_name, color_map, color_list=None):
     return None
 
 # ===== UI & APPLICATION LOGIC =====
-class ClusteringPage(QWidget):
+# --- MODIFIED: Inherit from BasePage instead of QWidget ---
+class ClusteringPage(BasePage):
     analysis_completed = pyqtSignal(dict)
 
     def __init__(self):
@@ -49,15 +51,15 @@ class ClusteringPage(QWidget):
         self.initUI()
 
     def initUI(self):
-        self.main_layout = QVBoxLayout(self)
-        self.main_layout.setContentsMargins(25, 25, 25, 25)
-        self.main_layout.setSpacing(15)
+        # --- MODIFIED: The main layout is now self.content_layout provided by BasePage ---
+        # No longer need: self.main_layout = QVBoxLayout(self)
+        self.content_layout.setSpacing(15)
 
         # --- Title ---
         title_label = QLabel("ماژول تحلیل خوشه‌بندی (الگوریتم‌های K-Means, K-Medoids, Ward)")
         title_label.setObjectName("TitleLabel")
         title_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self.main_layout.addWidget(title_label)
+        self.content_layout.addWidget(title_label)
 
         # --- Step 1: File Upload ---
         self.file_group_box = QGroupBox("مرحله ۱: انتخاب فایل داده")
@@ -76,7 +78,7 @@ class ClusteringPage(QWidget):
         file_h_layout.addWidget(self.file_path_label, 1)
         file_v_layout.addLayout(file_h_layout)
         self.file_group_box.setLayout(file_v_layout)
-        self.main_layout.addWidget(self.file_group_box)
+        self.content_layout.addWidget(self.file_group_box)
 
         # --- Middle Section (Steps 2 & 3) ---
         self.middle_layout = QHBoxLayout()
@@ -113,7 +115,7 @@ class ClusteringPage(QWidget):
         self.comparison_group_box.setLayout(comparison_layout)
         self.middle_layout.addWidget(self.comparison_group_box, stretch=2)
         
-        self.main_layout.addLayout(self.middle_layout, stretch=2)
+        self.content_layout.addLayout(self.middle_layout, stretch=2)
 
         # --- Detailed Results (Bottom) ---
         self.dmu_group_box = QGroupBox("جزئیات خوشه‌بندی مدل انتخاب شده")
@@ -135,7 +137,7 @@ class ClusteringPage(QWidget):
         self.dmu_table.setSortingEnabled(True)
         dmu_layout.addWidget(self.dmu_table)
         self.dmu_group_box.setLayout(dmu_layout)
-        self.main_layout.addWidget(self.dmu_group_box, stretch=2)
+        self.content_layout.addWidget(self.dmu_group_box, stretch=2)
 
         # --- Models & Connections ---
         self.results_table.setModel(QStandardItemModel())

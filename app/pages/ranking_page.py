@@ -10,10 +10,12 @@ import pandas as pd
 import traceback
 
 from ..logic.dea_analysis import run_ranking_dea
-from .utils import create_numeric_item, create_text_item, save_table_to_excel
+# --- MODIFIED: Import BasePage ---
+from .utils import create_numeric_item, create_text_item, save_table_to_excel, BasePage
 
 #===== UI & APPLICATION LOGIC =====
-class RankingPage(QWidget):
+# --- MODIFIED: Inherit from BasePage ---
+class RankingPage(BasePage):
     def __init__(self):
         super().__init__()
         self.df = None
@@ -21,14 +23,13 @@ class RankingPage(QWidget):
         self.initUI()
         
     def initUI(self):
-        self.main_layout = QVBoxLayout(self)
-        self.main_layout.setContentsMargins(25, 25, 25, 25)
-        self.main_layout.setSpacing(15)
+        # --- MODIFIED: Use self.content_layout provided by BasePage ---
+        self.content_layout.setSpacing(15)
         
         title_label = QLabel("ماژول رتبه‌بندی (مدل Super Efficiency)")
         title_label.setObjectName("TitleLabel")
         title_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self.main_layout.addWidget(title_label)
+        self.content_layout.addWidget(title_label)
 
         # --- Step 1 ---
         self.upload_group = QGroupBox("مرحله ۱: بارگذاری فایل داده")
@@ -44,7 +45,7 @@ class RankingPage(QWidget):
         upload_layout.addWidget(self.download_button)
         upload_layout.addWidget(self.file_path_label, 1)
         self.upload_group.setLayout(upload_layout)
-        self.main_layout.addWidget(self.upload_group)
+        self.content_layout.addWidget(self.upload_group)
 
         # --- Step 2 & 3 ---
         self.middle_splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -93,7 +94,7 @@ class RankingPage(QWidget):
         
         self.middle_splitter.addWidget(self.run_group)
         self.middle_splitter.setSizes([400, 100])
-        self.main_layout.addWidget(self.middle_splitter)
+        self.content_layout.addWidget(self.middle_splitter)
 
         # --- Step 4: Results ---
         self.results_group = QGroupBox("نتایج رتبه‌بندی")
@@ -115,7 +116,7 @@ class RankingPage(QWidget):
         self.results_table.setSortingEnabled(True)
         results_layout.addWidget(self.results_table)
         self.results_group.setLayout(results_layout)
-        self.main_layout.addWidget(self.results_group, 1)
+        self.content_layout.addWidget(self.results_group, 1)
         
         # Connections
         self.upload_button.clicked.connect(self.load_data)

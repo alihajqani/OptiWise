@@ -3,20 +3,24 @@
 
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextBrowser
 from PyQt6.QtCore import Qt
+# --- MODIFIED: Import BasePage ---
+from .utils import BasePage
 
-class HelpPage(QWidget):
+# --- MODIFIED: Inherit from BasePage instead of QWidget ---
+class HelpPage(BasePage):
     def __init__(self):
         super().__init__()
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(25, 25, 25, 25)
-
+        # --- MODIFIED: Use self.content_layout provided by BasePage ---
+        # The line `layout = QVBoxLayout(self)` is no longer needed.
+        
         text_browser = QTextBrowser()
         text_browser.setReadOnly(True)
         text_browser.setOpenExternalLinks(True)
         text_browser.setHtml(self.get_help_html())
 
-        layout.addWidget(text_browser)
-        self.setLayout(layout)
+        # --- MODIFIED: Add the widget to the content_layout ---
+        self.content_layout.addWidget(text_browser)
+        # The line `self.setLayout(layout)` is no longer needed.
 
     def get_help_html(self):
         return"""

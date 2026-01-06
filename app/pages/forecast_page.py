@@ -8,11 +8,13 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QStandardItemModel, QStandardItem, QColor
 import pandas as pd
 import traceback
-from .utils import create_numeric_item, create_text_item, save_table_to_excel
+# --- MODIFIED: Import BasePage ---
+from .utils import create_numeric_item, create_text_item, save_table_to_excel, BasePage
 from ..logic.forecasting_logic import run_forecast
 
 # ===== UI & APPLICATION LOGIC =====
-class ForecastPage(QWidget):
+# --- MODIFIED: Inherit from BasePage ---
+class ForecastPage(BasePage):
     def __init__(self):
         super().__init__()
         self.df = None
@@ -20,14 +22,13 @@ class ForecastPage(QWidget):
         self.initUI()
 
     def initUI(self):
-        self.main_layout = QVBoxLayout(self)
-        self.main_layout.setContentsMargins(25, 25, 25, 25)
-        self.main_layout.setSpacing(15)
+        # --- MODIFIED: Use self.content_layout provided by BasePage ---
+        self.content_layout.setSpacing(15)
 
         title_label = QLabel("پیش‌بینی تعداد نیروی انسانی مورد نیاز (مدل سری زمانی)"); 
         title_label.setObjectName("TitleLabel")
         title_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self.main_layout.addWidget(title_label)
+        self.content_layout.addWidget(title_label)
 
         # --- Step 1 ---
         self.upload_group = QGroupBox("مرحله ۱: بارگذاری فایل داده‌های تاریخی (۵ سال گذشته)")
@@ -43,7 +44,7 @@ class ForecastPage(QWidget):
         upload_layout.addWidget(self.download_button)
         upload_layout.addWidget(self.file_path_label, 1)
         self.upload_group.setLayout(upload_layout)
-        self.main_layout.addWidget(self.upload_group)
+        self.content_layout.addWidget(self.upload_group)
 
         # --- Step 2 & 3 ---
         self.middle_splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -70,7 +71,7 @@ class ForecastPage(QWidget):
         
         self.middle_splitter.addWidget(self.run_group)
         self.middle_splitter.setSizes([400, 100])
-        self.main_layout.addWidget(self.middle_splitter)
+        self.content_layout.addWidget(self.middle_splitter)
 
         # --- Step 4 ---
         self.results_group = QGroupBox("نتایج پیش‌بینی (سری زمانی)")
@@ -92,7 +93,7 @@ class ForecastPage(QWidget):
         self.results_table.setSortingEnabled(False) 
         results_layout.addWidget(self.results_table)
         self.results_group.setLayout(results_layout)
-        self.main_layout.addWidget(self.results_group, 1)
+        self.content_layout.addWidget(self.results_group, 1)
 
         self.upload_button.clicked.connect(self.load_data)
         self.download_button.clicked.connect(self.download_template)
